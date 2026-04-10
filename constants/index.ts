@@ -31,6 +31,7 @@ export const APP_NAME = 'Knack' as const
 
 export const GENERATE_PLAN_ENDPOINT = '/api/generate-plan' as const
 export const FETCH_VIDEOS_ENDPOINT = '/api/fetch-videos' as const
+export const GROQ_MODEL = 'llama-3.3-70b-versatile' as const
 
 export const YOUTUBE_MAX_RESULTS = 3 as const
 

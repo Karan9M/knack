@@ -1,6 +1,7 @@
 import Groq from 'groq-sdk'
 import type { SkillLevel } from '@/types'
 import { GeminiPlanResponseSchema, type GeminiTechnique } from '@/lib/validators'
+import { GROQ_MODEL } from '@/constants'
 
 function getGroqClient(): Groq {
   const apiKey = process.env.GROQ_API_KEY
@@ -64,7 +65,7 @@ export async function generatePlanTechniques(
   const prompt = buildPlanPrompt(hobby, currentLevel, targetLevel)
 
   const response = await client.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+    model: GROQ_MODEL,
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.7,
   })
