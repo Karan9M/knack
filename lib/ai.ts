@@ -1,6 +1,12 @@
+import Groq from 'groq-sdk'
 import type { SkillLevel } from '@/types'
 import { GeminiPlanResponseSchema, type GeminiTechnique } from '@/lib/validators'
-import { GroqClientService } from '@/lib/services/groq-client.service'
+
+function getGroqClient(): Groq {
+  const apiKey = process.env.GROQ_API_KEY
+  if (!apiKey) throw new Error('GROQ_API_KEY is not configured')
+  return new Groq({ apiKey })
+}
 
 export const buildPlanPrompt = (hobby: string, current: SkillLevel, target: SkillLevel): string => `
 You are a master coach for ${hobby}.
@@ -53,7 +59,7 @@ export async function generatePlanTechniques(
   currentLevel: SkillLevel,
   targetLevel: SkillLevel
 ): Promise<GeminiTechnique[]> {
-  const { sdk: client } = GroqClientService.fromEnv()
+  const client = getGroqClient()
 
   const prompt = buildPlanPrompt(hobby, currentLevel, targetLevel)
 
