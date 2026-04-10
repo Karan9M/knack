@@ -25,6 +25,25 @@ export const UpdateTechniqueStatusSchema = z.object({
   status: z.enum(['pending', 'mastered', 'skipped']),
 })
 
+export const TechniqueChatSchema = z.object({
+  question: z.string().min(1).max(1000),
+  hobby: z.string().min(1).max(120),
+  techniqueName: z.string().min(1).max(200),
+  whyItMatters: z.string().max(1200),
+  keyConcepts: z.array(z.string()).max(20),
+  mdxContent: z.string().max(12000).optional(),
+  notes: z.string().max(5000).optional(),
+  history: z
+    .array(
+      z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string().min(1).max(1500),
+      })
+    )
+    .max(12)
+    .optional(),
+})
+
 export const ArticleLinkSchema = z.object({
   title: z.string(),
   url: z.string().url(),
@@ -62,3 +81,4 @@ export type GeneratePlanInput = z.infer<typeof GeneratePlanSchema>
 export type FetchVideosInput = z.infer<typeof FetchVideosSchema>
 export type GenerateContentInput = z.infer<typeof GenerateContentSchema>
 export type GeminiTechnique = z.infer<typeof GeminiTechniqueSchema>
+export type TechniqueChatInput = z.infer<typeof TechniqueChatSchema>

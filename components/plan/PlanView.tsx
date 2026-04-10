@@ -33,6 +33,8 @@ interface PlanViewProps {
   initialPlan: Plan
 }
 
+const SKIP_RESUME_ONCE_KEY = 'knack_skip_resume_once'
+
 export function PlanView({ initialPlan }: PlanViewProps) {
   // ── Store selectors — narrow primitives to avoid infinite-loop snapshots ──
   const setPlan = usePlanStore((s) => s.setPlan)
@@ -149,6 +151,12 @@ export function PlanView({ initialPlan }: PlanViewProps) {
     return () => el.removeEventListener('scroll', handle)
   }, [])
 
+  useEffect(() => {
+    const el = contentRef.current
+    if (!el || !selectedTechniqueId) return
+    el.scrollTo({ top: 0, behavior: 'auto' })
+  }, [selectedTechniqueId])
+
   // ── Right panel collapse state ─────────────────────────────────────────────
   const [navOpen, setNavOpen] = useState(true)
 
@@ -201,7 +209,7 @@ export function PlanView({ initialPlan }: PlanViewProps) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.22 }}
-              className="fixed top-4 left-1/2 z-[70] -translate-x-1/2 rounded-full border border-primary/20 bg-background/95 px-4 py-2 text-sm text-foreground shadow-lg backdrop-blur"
+              className="fixed top-14 md:top-16 left-1/2 z-[70] -translate-x-1/2 rounded-2xl border border-primary/20 bg-background/95 px-5 py-3 text-base font-medium text-foreground shadow-lg backdrop-blur"
             >
               {resumeBannerText}
             </motion.div>
@@ -225,6 +233,7 @@ export function PlanView({ initialPlan }: PlanViewProps) {
             <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-foreground" />
             <Link
               href="/"
+              onClick={() => sessionStorage.setItem(SKIP_RESUME_ONCE_KEY, '1')}
               className="flex items-center gap-2.5 group"
               aria-label={`${APP_NAME} home`}
             >
@@ -261,6 +270,7 @@ export function PlanView({ initialPlan }: PlanViewProps) {
               >
                 <Link
                   href="/"
+                  onClick={() => sessionStorage.setItem(SKIP_RESUME_ONCE_KEY, '1')}
                   className="flex items-center gap-2.5 group"
                   aria-label={`${APP_NAME} home`}
                 >

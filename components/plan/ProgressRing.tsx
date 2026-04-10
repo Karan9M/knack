@@ -10,7 +10,7 @@ interface ProgressRingProps {
 
 export function ProgressRing({ mastered, total, size = 72 }: ProgressRingProps) {
   const prefersReduced = useReducedMotion()
-  const strokeWidth = 5
+  const strokeWidth = 4
   const radius = (size - strokeWidth * 2) / 2
   const circumference = 2 * Math.PI * radius
   const progress = total > 0 ? mastered / total : 0
@@ -47,10 +47,10 @@ export function ProgressRing({ mastered, total, size = 72 }: ProgressRingProps) 
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-base font-bold text-foreground leading-none tabular-nums">
+        <span className="text-[1.375rem] font-bold text-foreground leading-none tabular-nums tracking-tight">
           {mastered}
         </span>
-        <span className="text-[10px] text-muted-foreground leading-none mt-0.5 tabular-nums">
+        <span className="text-[11px] text-muted-foreground/85 leading-none mt-1 tabular-nums tracking-wide">
           /{total}
         </span>
       </div>

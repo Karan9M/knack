@@ -33,6 +33,8 @@ interface PastPlan {
 }
 
 const PAST_PLANS_CACHE_KEY = 'knack_past_plans_v1'
+const SKIP_RESUME_ONCE_KEY = 'knack_skip_resume_once'
+const RESUME_HANDLED_ONCE_KEY = 'knack_resume_handled_once'
 
 function readPastPlansCache(): PastPlan[] {
   try {
@@ -106,12 +108,28 @@ export default function OnboardingPage() {
   }
 
   useEffect(() => {
+    const resumeAlreadyHandled = sessionStorage.getItem(RESUME_HANDLED_ONCE_KEY) === '1'
+    if (resumeAlreadyHandled) {
+      setResumeChecked(true)
+      return
+    }
+
+    const skipResumeOnce = sessionStorage.getItem(SKIP_RESUME_ONCE_KEY) === '1'
+    if (skipResumeOnce) {
+      sessionStorage.removeItem(SKIP_RESUME_ONCE_KEY)
+      sessionStorage.setItem(RESUME_HANDLED_ONCE_KEY, '1')
+      setResumeChecked(true)
+      return
+    }
+
     const resume = readResumeState()
     if (resume?.planId) {
+      sessionStorage.setItem(RESUME_HANDLED_ONCE_KEY, '1')
       setIsResuming(true)
       router.replace(`/plan/${resume.planId}`)
       return
     }
+    sessionStorage.setItem(RESUME_HANDLED_ONCE_KEY, '1')
     setResumeChecked(true)
   }, [router])
 

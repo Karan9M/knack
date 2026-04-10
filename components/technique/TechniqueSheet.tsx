@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -16,6 +16,7 @@ export function TechniqueSheet() {
   const technique = activePlan?.techniques.find((t) => t.id === selectedTechniqueId) ?? null
 
   const handleClose = useCallback(() => closeSheet(), [closeSheet])
+  const scrollRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -30,6 +31,11 @@ export function TechniqueSheet() {
       document.body.style.overflow = ''
     }
   }, [isSheetOpen, handleClose])
+
+  useEffect(() => {
+    if (!isSheetOpen) return
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' })
+  }, [isSheetOpen, selectedTechniqueId])
 
   return (
     <AnimatePresence>
@@ -77,7 +83,7 @@ export function TechniqueSheet() {
             </button>
 
             {/* Scrollable content — delegated to TechniqueContent */}
-            <div className="overflow-y-auto max-h-[calc(92dvh-2.5rem)]">
+            <div ref={scrollRef} className="overflow-y-auto max-h-[calc(92dvh-2.5rem)]">
               <TechniqueContent technique={technique} plan={activePlan} onClose={handleClose} />
             </div>
           </motion.div>
