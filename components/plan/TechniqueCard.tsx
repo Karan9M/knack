@@ -35,7 +35,8 @@ export const TechniqueCard = memo(function TechniqueCard({ technique, index }: T
           'focus:outline-none focus:ring-2 focus:ring-primary/40',
           'hover:shadow-md hover:-translate-y-0.5 active:translate-y-0',
           isPending && 'bg-card border-border hover:border-primary/30',
-          isMastered && 'bg-emerald-50 border-emerald-200 hover:border-emerald-300',
+          isMastered &&
+            'bg-emerald-50 border-emerald-200 hover:border-emerald-300 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:hover:border-emerald-500/50',
           isSkipped && 'bg-secondary/50 border-border/60 opacity-60'
         )}
         aria-label={`Open technique: ${technique.name}`}
@@ -50,7 +51,7 @@ export const TechniqueCard = memo(function TechniqueCard({ technique, index }: T
               <span
                 className={cn(
                   'font-semibold text-base leading-snug',
-                  isMastered && 'text-emerald-800',
+                  isMastered && 'text-emerald-800 dark:text-emerald-300',
                   isSkipped && 'line-through text-muted-foreground',
                   isPending && 'text-foreground'
                 )}

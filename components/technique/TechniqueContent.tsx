@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -20,6 +20,7 @@ import { useTechniqueActions } from '@/hooks/useTechniqueActions'
 import { usePlanStore } from '@/store/planStore'
 import { useUIStore } from '@/store/uiStore'
 import { useTechniqueNotes } from '@/hooks/useTechniqueNotes'
+import { TechniqueChat } from '@/components/technique/TechniqueChat'
 import { CONTENT_TYPE_LABELS } from '@/constants'
 import type { Technique, Plan, PracticeTask } from '@/types'
 
@@ -110,6 +111,73 @@ export const TechniqueContent = memo(function TechniqueContent({
   const [notesOpen, setNotesOpen] = useState(false)
   const notesPanelRef = useRef<HTMLDivElement | null>(null)
   const notesButtonRef = useRef<HTMLButtonElement | null>(null)
+  const contentRootRef = useRef<HTMLElement | null>(null)
+  const [selectionMenu, setSelectionMenu] = useState<{
+    text: string
+    x: number
+    y: number
+  } | null>(null)
+
+  const hideSelectionMenu = useCallback(() => setSelectionMenu(null), [])
+
+  const maybeShowSelectionMenu = useCallback(() => {
+    const selection = window.getSelection()
+    const selectedText = selection?.toString().trim() ?? ''
+
+    if (!selection || selection.rangeCount === 0 || selectedText.length < 2) {
+      setSelectionMenu(null)
+      return
+    }
+
+    const range = selection.getRangeAt(0)
+    const containerNode = range.commonAncestorContainer
+    const root = contentRootRef.current
+    if (!root) return
+
+    const containerEl =
+      containerNode.nodeType === Node.ELEMENT_NODE
+        ? (containerNode as Element)
+        : containerNode.parentElement
+
+    if (!containerEl || !root.contains(containerEl)) {
+      setSelectionMenu(null)
+      return
+    }
+
+    if (
+      containerEl.closest('textarea') ||
+      containerEl.closest('input') ||
+      containerEl.closest('[contenteditable="true"]')
+    ) {
+      setSelectionMenu(null)
+      return
+    }
+
+    const rect = range.getBoundingClientRect()
+    if (!rect.width && !rect.height) {
+      setSelectionMenu(null)
+      return
+    }
+
+    setSelectionMenu({
+      text: selectedText,
+      x: rect.left + rect.width / 2,
+      y: rect.top - 10,
+    })
+  }, [])
+
+  const saveSelectionToNotes = useCallback(() => {
+    if (!selectionMenu) return
+    const normalized = selectionMenu.text.replace(/\s+/g, ' ').trim()
+    if (!normalized) return
+    const next = notes.notes.trim().length
+      ? `${notes.notes.trim()}\n• ${normalized}`
+      : `• ${normalized}`
+    notes.onChange(next)
+    window.getSelection()?.removeAllRanges()
+    setSelectionMenu(null)
+    setNotesOpen(true)
+  }, [notes, selectionMenu])
 
   useEffect(() => {
     if (!notesOpen) return
@@ -133,8 +201,36 @@ export const TechniqueContent = memo(function TechniqueContent({
     }
   }, [notesOpen])
 
+  useEffect(() => {
+    const onMouseUp = () => window.setTimeout(maybeShowSelectionMenu, 0)
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.shiftKey && event.key.includes('Arrow')) {
+        window.setTimeout(maybeShowSelectionMenu, 0)
+      }
+    }
+    const onScroll = () => hideSelectionMenu()
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null
+      if (!target) return
+      const menu = document.getElementById('selection-save-menu')
+      if (menu?.contains(target)) return
+      hideSelectionMenu()
+    }
+
+    document.addEventListener('mouseup', onMouseUp)
+    document.addEventListener('keyup', onKeyUp)
+    document.addEventListener('mousedown', onPointerDown)
+    window.addEventListener('scroll', onScroll, true)
+    return () => {
+      document.removeEventListener('mouseup', onMouseUp)
+      document.removeEventListener('keyup', onKeyUp)
+      document.removeEventListener('mousedown', onPointerDown)
+      window.removeEventListener('scroll', onScroll, true)
+    }
+  }, [hideSelectionMenu, maybeShowSelectionMenu])
+
   return (
-    <article className="max-w-2xl mx-auto px-6 md:px-10 py-10 pb-16">
+    <article ref={contentRootRef} className="max-w-2xl mx-auto px-6 md:px-10 py-10 pb-40 md:pb-44">
       {/* Status + meta row */}
       <div className="flex items-center gap-3 text-xs text-muted-foreground mb-5">
         <span className="font-medium tracking-wide uppercase">
@@ -278,7 +374,6 @@ export const TechniqueContent = memo(function TechniqueContent({
           <button
             onClick={() => {
               setSelectedTechniqueId(nextTechnique.id)
-              onClose?.()
             }}
             className={cn(
               'w-full h-12 rounded-2xl flex items-center justify-center gap-2',
@@ -302,7 +397,6 @@ export const TechniqueContent = memo(function TechniqueContent({
           <button
             onClick={() => {
               setSelectedTechniqueId(nextTechnique.id)
-              onClose?.()
             }}
             className="flex items-center justify-between w-full px-4 py-3 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors group"
           >
@@ -315,20 +409,27 @@ export const TechniqueContent = memo(function TechniqueContent({
         )}
       </div>
 
-      <button
-        ref={notesButtonRef}
-        type="button"
-        onClick={() => setNotesOpen((v) => !v)}
+      <div
         className={cn(
-          'fixed bottom-6 z-[65] h-12 w-12 rounded-full shadow-lg',
+          'fixed bottom-6 z-[65] h-[62px] w-12',
           floatingOffsetClass ?? 'right-5',
-          'bg-primary text-primary-foreground flex items-center justify-center',
-          'hover:brightness-105 transition-all active:scale-95'
+          'flex items-center justify-center'
         )}
-        aria-label={notesOpen ? 'Close notes' : 'Open notes'}
       >
-        <NotebookPen className="h-5 w-5" />
-      </button>
+        <button
+          ref={notesButtonRef}
+          type="button"
+          onClick={() => setNotesOpen((v) => !v)}
+          className={cn(
+            'h-12 w-12 rounded-full shadow-lg',
+            'bg-primary text-primary-foreground flex items-center justify-center',
+            'hover:brightness-105 transition-all active:scale-95'
+          )}
+          aria-label={notesOpen ? 'Close notes' : 'Open notes'}
+        >
+          <NotebookPen className="h-5 w-5" />
+        </button>
+      </div>
 
       <AnimatePresence>
         {!notesOpen && notes.status !== 'idle' && (
@@ -354,6 +455,27 @@ export const TechniqueContent = memo(function TechniqueContent({
       </AnimatePresence>
 
       <AnimatePresence>
+        {selectionMenu && (
+          <motion.button
+            id="selection-save-menu"
+            initial={{ opacity: 0, y: 6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 6, scale: 0.98 }}
+            transition={{ duration: 0.14 }}
+            className="fixed z-[80] rounded-full border border-border bg-background/95 px-3 py-1.5 text-xs text-foreground shadow-lg backdrop-blur hover:bg-secondary"
+            style={{
+              left: selectionMenu.x,
+              top: selectionMenu.y,
+              transform: 'translate(-50%, -100%)',
+            }}
+            onClick={saveSelectionToNotes}
+          >
+            Save to notes
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {notesOpen && (
           <motion.div
             ref={notesPanelRef}
@@ -362,7 +484,7 @@ export const TechniqueContent = memo(function TechniqueContent({
             exit={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.2 }}
             className={cn(
-              'fixed bottom-20 z-[65] w-[min(92vw,420px)]',
+              'fixed bottom-24 z-[65] w-[min(92vw,420px)]',
               floatingOffsetClass ?? 'right-5',
               'rounded-2xl border border-border bg-card p-4 shadow-2xl backdrop-blur'
             )}
@@ -404,6 +526,8 @@ export const TechniqueContent = memo(function TechniqueContent({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <TechniqueChat technique={technique} hobby={plan.hobby} />
     </article>
   )
 })

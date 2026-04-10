@@ -35,8 +35,8 @@ export function PlanHeader({ plan, masteredCount }: PlanHeaderProps) {
           </p>
         </div>
 
-        <div className="flex flex-col items-center gap-2 flex-shrink-0">
-          <ProgressRing mastered={masteredCount} total={total} />
+        <div className="flex flex-col items-center gap-2 flex-shrink-0 pt-0.5">
+          <ProgressRing mastered={masteredCount} total={total} size={76} />
           <StreakBadge count={streak.count} />
         </div>
       </div>

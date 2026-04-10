@@ -3,6 +3,7 @@ import {
   FetchVideosSchema,
   GeminiPlanResponseSchema,
   GeneratePlanSchema,
+  TechniqueChatSchema,
   UpdateTechniqueStatusSchema,
 } from '@/lib/validators'
 
@@ -76,5 +77,26 @@ describe('GeminiPlanResponseSchema', () => {
       techniques: Array.from({ length: 5 }, (_, i) => ({ ...baseTechnique, id: `t${i}` })),
     }
     expect(GeminiPlanResponseSchema.safeParse(ok).success).toBe(true)
+  })
+})
+
+describe('TechniqueChatSchema', () => {
+  const valid = {
+    question: 'How do I keep balance while pivoting?',
+    hobby: 'Boxing',
+    techniqueName: 'Stance and Footwork',
+    whyItMatters: 'Footwork sets up every punch and defense.',
+    keyConcepts: ['Balance: stay centered over your base'],
+    mdxContent: 'Keep your knees soft and weight distributed.',
+    notes: 'I lean too far forward when I jab.',
+    history: [{ role: 'user' as const, content: 'What is the first drill?' }],
+  }
+
+  it('accepts a valid payload', () => {
+    expect(TechniqueChatSchema.safeParse(valid).success).toBe(true)
+  })
+
+  it('rejects empty question', () => {
+    expect(TechniqueChatSchema.safeParse({ ...valid, question: '' }).success).toBe(false)
   })
 })
