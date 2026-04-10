@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { usePlanStore } from '@/store/planStore'
 import { useUIStore } from '@/store/uiStore'
@@ -17,6 +18,7 @@ import { KnackWordmark } from '@/components/layout/KnackWordmark'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { getSessionId } from '@/lib/session'
+import { readResumeState, writeResumeState } from '@/lib/resumeState'
 import { APP_NAME } from '@/constants'
 import type { Plan, SkillLevel } from '@/types'
 import type { PlanSummary } from '@/components/plan/PlanSwitcherSidebar'
@@ -42,6 +44,8 @@ export function PlanView({ initialPlan }: PlanViewProps) {
 
   const selectedTechniqueId = useUIStore((s) => s.selectedTechniqueId)
   const setSelectedTechniqueId = useUIStore((s) => s.setSelectedTechniqueId)
+  const [resumeBannerText, setResumeBannerText] = useState<string | null>(null)
+  const hasHydratedSelectionRef = useRef(false)
 
   // Hydrate Zustand from SSR-fetched plan
   useEffect(() => {
@@ -55,13 +59,51 @@ export function PlanView({ initialPlan }: PlanViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ── Auto-select first pending technique on desktop ────────────────────────
+  // ── Initial selection hydration (resume first, then fallback) ─────────────
   useEffect(() => {
-    if (selectedTechniqueId) return
+    hasHydratedSelectionRef.current = false
+  }, [planId])
+
+  useEffect(() => {
+    if (hasHydratedSelectionRef.current || techniques.length === 0) return
+
+    if (selectedTechniqueId) {
+      hasHydratedSelectionRef.current = true
+      return
+    }
+
+    const resume = readResumeState()
+    if (resume && resume.planId === planId) {
+      const resumedTechnique = techniques.find((t) => t.id === resume.techniqueId)
+      if (resumedTechnique) {
+        setSelectedTechniqueId(resumedTechnique.id)
+        setResumeBannerText(`Welcome back — you were on ${resumedTechnique.name}`)
+        hasHydratedSelectionRef.current = true
+        return
+      }
+    }
+
     const first = techniques.find((t) => t.status === 'pending')
     if (first) setSelectedTechniqueId(first.id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    hasHydratedSelectionRef.current = true
+  }, [planId, selectedTechniqueId, setSelectedTechniqueId, techniques])
+
+  useEffect(() => {
+    if (!resumeBannerText) return
+    const timer = window.setTimeout(() => setResumeBannerText(null), 3000)
+    return () => window.clearTimeout(timer)
+  }, [resumeBannerText])
+
+  useEffect(() => {
+    if (!selectedTechniqueId) return
+    const selected = techniques.find((t) => t.id === selectedTechniqueId)
+    if (!selected) return
+    writeResumeState({
+      planId,
+      techniqueId: selectedTechniqueId,
+      techniqueName: selected.name,
+    })
+  }, [planId, selectedTechniqueId, techniques])
 
   // ── Past plans for the left switcher sidebar ──────────────────────────────
   const [allPlans, setAllPlans] = useState<PlanSummary[]>([])
@@ -152,6 +194,20 @@ export function PlanView({ initialPlan }: PlanViewProps) {
 
       {/* ── CENTRE + RIGHT: inset that fills remaining width ─────────── */}
       <SidebarInset className="flex flex-col overflow-hidden min-h-0 h-dvh">
+        <AnimatePresence>
+          {resumeBannerText && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.22 }}
+              className="fixed top-4 left-1/2 z-[70] -translate-x-1/2 rounded-full border border-primary/20 bg-background/95 px-4 py-2 text-sm text-foreground shadow-lg backdrop-blur"
+            >
+              {resumeBannerText}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Mobile-only navbar (keeps floaty behavior on scroll) */}
         <header
           className={cn(

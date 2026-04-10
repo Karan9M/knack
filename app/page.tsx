@@ -15,6 +15,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/s
 import { usePlanStore } from '@/store/planStore'
 import { useUIStore } from '@/store/uiStore'
 import { getSessionId } from '@/lib/session'
+import { readResumeState } from '@/lib/resumeState'
 import { GENERATE_PLAN_ENDPOINT } from '@/constants'
 import type { SkillLevel, Plan, GeneratePlanResponse, StreakData, UserPreferences } from '@/types'
 import { cn } from '@/lib/utils'
@@ -95,6 +96,8 @@ export default function OnboardingPage() {
   const [inputValue, setInputValue] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pastPlans, setPastPlans] = useState<PastPlan[]>([])
+  const [resumeChecked, setResumeChecked] = useState(false)
+  const [isResuming, setIsResuming] = useState(false)
 
   // Quiz sits between hobby and level — only shown once, then preferences are persisted.
   const handleQuizComplete = (prefs: UserPreferences) => {
@@ -103,6 +106,17 @@ export default function OnboardingPage() {
   }
 
   useEffect(() => {
+    const resume = readResumeState()
+    if (resume?.planId) {
+      setIsResuming(true)
+      router.replace(`/plan/${resume.planId}`)
+      return
+    }
+    setResumeChecked(true)
+  }, [router])
+
+  useEffect(() => {
+    if (!resumeChecked || isResuming) return
     const cached = readPastPlansCache()
     if (cached.length > 0) setPastPlans(cached)
 
@@ -127,7 +141,7 @@ export default function OnboardingPage() {
         writePastPlansCache(mapped)
       })
       .catch(() => {})
-  }, [])
+  }, [isResuming, resumeChecked])
 
   const handleHobbySubmit = () => {
     const trimmed = inputValue.trim()
@@ -184,6 +198,14 @@ export default function OnboardingPage() {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setStep('level')
     }
+  }
+
+  if (!resumeChecked || isResuming) {
+    return (
+      <main className="flex h-dvh items-center justify-center bg-background text-sm text-muted-foreground">
+        Loading your progress...
+      </main>
+    )
   }
 
   return (
