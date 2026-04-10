@@ -90,7 +90,41 @@ Tables expected by the app: **`sessions`**, **`plans`**, **`techniques`**, **`st
 
 ## Testing
 
-Focused **unit tests** cover high-value, deterministic code: Zod schemas in [`lib/validators.ts`](lib/validators.ts) and helpers in [`lib/utils.ts`](lib/utils.ts). Run `npm test` before pushing.
+Focused **unit tests** cover high-value, deterministic code:
+
+- Zod schemas in [`lib/validators.ts`](lib/validators.ts)
+- helpers in [`lib/utils.ts`](lib/utils.ts)
+- local persistence and progress behavior in [`lib/storage.ts`](lib/storage.ts)
+
+Run `npm test` before pushing.
+
+## Product parity checklist (`knack` -> `knack-prod`)
+
+This repository is maintained as a runtime-equivalent replica of `knack` for:
+
+- App routes/pages in [`app`](app)
+- API routes in [`app/api`](app/api)
+- Feature/UI modules in [`components`](components), [`hooks`](hooks), [`store`](store)
+- Domain/runtime logic in [`lib`](lib), [`types`](types), [`constants`](constants), and [`public`](public)
+
+### Accepted engineering-only divergences
+
+The following are intentional and do **not** change product behavior:
+
+- Tooling and quality files: Husky, lint-staged, Prettier, Vitest config/tests
+- CI/dev scripts and hook scripts in `package.json`
+- ESLint overrides for `components/ui/*` to keep third-party-style UI primitives lint-safe
+
+### Parity verification commands
+
+Run this full gate before release:
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
 
 ## AI usage (assistive, not “vibe coded”)
 
