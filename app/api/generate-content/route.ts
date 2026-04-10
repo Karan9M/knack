@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server'
+import Groq from 'groq-sdk'
 import { GenerateContentSchema } from '@/lib/validators'
 import { saveMdxContent } from '@/lib/db'
-import { GroqClientService } from '@/lib/services/groq-client.service'
 
 function buildContentPrompt(
   techniqueName: string,
@@ -44,7 +44,10 @@ export async function POST(req: NextRequest) {
 
     const { techniqueId, techniqueName, hobby, whyItMatters, keyConcepts } = parsed.data
 
-    const client = GroqClientService.fromEnv().sdk
+    const apiKey = process.env.GROQ_API_KEY
+    if (!apiKey) throw new Error('GROQ_API_KEY is not configured')
+
+    const client = new Groq({ apiKey })
     const prompt = buildContentPrompt(techniqueName, hobby, whyItMatters, keyConcepts)
 
     const response = await client.chat.completions.create({
