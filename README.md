@@ -1,5 +1,7 @@
 # Knack
 
+![Knack product preview](public/branding/30shots_so.png)
+
 Knack is a web app for **focused hobby learning**: you pick a hobby and level, get an AI-built roadmap of **5–8 techniques**, then work through **videos, reading, and practice tasks** while tracking progress (mastered / skipped) and a simple streak. Data is tied to an anonymous **session** and persisted in **Supabase** so it survives refresh and return visits—no signup required.
 
 ## Tech stack
@@ -48,6 +50,8 @@ flowchart TB
 - **`lib/services/`** — thin integration boundaries (e.g. `GroqClientService`) so environment and SDK setup stay consistent across routes.
 - **`lib/db.ts`** — maps domain types to Supabase rows (plans, techniques, sessions, streaks).
 - **`app/api/*`** — JSON APIs: plan generation, content generation, video fetch, technique updates, sessions.
+
+![Knack onboarding and roadmap UI](public/branding/769shots_so.png)
 
 ## Getting started
 

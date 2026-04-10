@@ -13,9 +13,50 @@ const dmSans = DM_Sans({
 })
 
 export const metadata: Metadata = {
-  title: `${APP_NAME} — Master Any Hobby`,
+  metadataBase: new URL('https://knack.vercel.app'),
+  title: {
+    default: `${APP_NAME} - Master Any Hobby`,
+    template: `%s · ${APP_NAME}`,
+  },
   description:
-    'AI-powered hobby learning roadmaps. Get a focused plan of 5–8 techniques tailored to your level.',
+    'Knack helps you master any hobby with AI-powered roadmaps, technique-focused coaching, contextual chat, and notes that actually improve practice.',
+  keywords: [
+    'AI learning roadmap',
+    'hobby learning',
+    'skill development',
+    'boxing technique coach',
+    'practice notes',
+    'learning plan',
+  ],
+  icons: {
+    icon: '/branding/knack-mark.svg',
+    shortcut: '/branding/knack-mark.svg',
+    apple: '/branding/knack-mark.svg',
+  },
+  openGraph: {
+    title: `${APP_NAME} — Master Any Hobby`,
+    description:
+      'Focused AI skill roadmaps with technique guidance, contextual chat, and notes-first learning.',
+    url: 'https://knack.vercel.app',
+    siteName: APP_NAME,
+    images: [
+      {
+        url: '/branding/863shots_so.png',
+        width: 1024,
+        height: 1024,
+        alt: `${APP_NAME} product mockup`,
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: `${APP_NAME} — Master Any Hobby`,
+    description:
+      'AI-powered skill roadmaps and contextual technique coaching that keeps learners in flow.',
+    images: ['/branding/863shots_so.png'],
+  },
 }
 
 export default function RootLayout({
