@@ -297,6 +297,10 @@ export function PlanView({ initialPlan }: PlanViewProps) {
                     key={selectedTechnique.id}
                     technique={selectedTechnique}
                     plan={plan}
+                    floatingOffsetClass={cn(
+                      'right-5',
+                      navOpen ? 'md:right-[15rem]' : 'md:right-[3.5rem]'
+                    )}
                   />
                 ) : (
                   <EmptyState hobby={plan.hobby} />

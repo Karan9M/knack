@@ -9,6 +9,7 @@ interface PlanState {
   setPlan: (plan: Plan) => void
   updateTechniqueStatus: (techniqueId: string, status: TechniqueStatus) => void
   updateTechniqueMdx: (techniqueId: string, content: string) => void
+  updateTechniqueNotes: (techniqueId: string, notes: string) => void
   updateTechniqueVideos: (techniqueId: string, videos: YouTubeVideo[]) => void
   updateTechniqueWikipedia: (techniqueId: string, image: Technique['wikipediaImage']) => void
   updateTechniqueGeneratedImage: (techniqueId: string, url: string) => void
@@ -52,6 +53,12 @@ export const usePlanStore = create<PlanState>((set, get) => ({
     const { activePlan } = get()
     if (!activePlan) return
     set({ activePlan: patchTechnique(activePlan, techniqueId, { mdxContent: content }) })
+  },
+
+  updateTechniqueNotes: (techniqueId: string, notes: string) => {
+    const { activePlan } = get()
+    if (!activePlan) return
+    set({ activePlan: patchTechnique(activePlan, techniqueId, { notes }) })
   },
 
   updateTechniqueVideos: (techniqueId: string, videos: YouTubeVideo[]) => {

@@ -1,8 +1,17 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { ExternalLink, Clock, ArrowRight, Zap, Timer, CheckCircle2 } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
+import {
+  ExternalLink,
+  Clock,
+  ArrowRight,
+  Zap,
+  Timer,
+  CheckCircle2,
+  NotebookPen,
+} from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { cn } from '@/lib/utils'
 import { KeyConceptsList } from '@/components/technique/KeyConceptsList'
@@ -10,6 +19,7 @@ import { MarkdownContent } from '@/components/technique/MarkdownContent'
 import { useTechniqueActions } from '@/hooks/useTechniqueActions'
 import { usePlanStore } from '@/store/planStore'
 import { useUIStore } from '@/store/uiStore'
+import { useTechniqueNotes } from '@/hooks/useTechniqueNotes'
 import { CONTENT_TYPE_LABELS } from '@/constants'
 import type { Technique, Plan, PracticeTask } from '@/types'
 
@@ -65,12 +75,14 @@ interface TechniqueContentProps {
   technique: Technique
   plan: Plan
   onClose?: () => void
+  floatingOffsetClass?: string
 }
 
 export const TechniqueContent = memo(function TechniqueContent({
   technique,
   plan,
   onClose,
+  floatingOffsetClass,
 }: TechniqueContentProps) {
   const { markMastered, skipTechnique } = useTechniqueActions()
 
@@ -94,6 +106,32 @@ export const TechniqueContent = memo(function TechniqueContent({
   const showArticles =
     (technique.contentType === 'article' || technique.contentType === 'both') &&
     (technique.resources.articleLinks?.length ?? 0) > 0
+  const notes = useTechniqueNotes({ techniqueId: technique.id, initialNotes: technique.notes })
+  const [notesOpen, setNotesOpen] = useState(false)
+  const notesPanelRef = useRef<HTMLDivElement | null>(null)
+  const notesButtonRef = useRef<HTMLButtonElement | null>(null)
+
+  useEffect(() => {
+    if (!notesOpen) return
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null
+      if (!target) return
+
+      const isInsidePanel = !!notesPanelRef.current?.contains(target)
+      const isInsideButton = !!notesButtonRef.current?.contains(target)
+      if (!isInsidePanel && !isInsideButton) {
+        setNotesOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('touchstart', handlePointerDown)
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('touchstart', handlePointerDown)
+    }
+  }, [notesOpen])
 
   return (
     <article className="max-w-2xl mx-auto px-6 md:px-10 py-10 pb-16">
@@ -276,6 +314,96 @@ export const TechniqueContent = memo(function TechniqueContent({
           </button>
         )}
       </div>
+
+      <button
+        ref={notesButtonRef}
+        type="button"
+        onClick={() => setNotesOpen((v) => !v)}
+        className={cn(
+          'fixed bottom-6 z-[65] h-12 w-12 rounded-full shadow-lg',
+          floatingOffsetClass ?? 'right-5',
+          'bg-primary text-primary-foreground flex items-center justify-center',
+          'hover:brightness-105 transition-all active:scale-95'
+        )}
+        aria-label={notesOpen ? 'Close notes' : 'Open notes'}
+      >
+        <NotebookPen className="h-5 w-5" />
+      </button>
+
+      <AnimatePresence>
+        {!notesOpen && notes.status !== 'idle' && (
+          <motion.div
+            initial={{ opacity: 0, y: 8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            transition={{ duration: 0.18 }}
+            className={cn(
+              'fixed bottom-20 z-[66] rounded-full border px-3 py-1.5 text-xs shadow-md',
+              floatingOffsetClass ?? 'right-5',
+              notes.status === 'error'
+                ? 'border-destructive/30 bg-destructive/10 text-destructive'
+                : 'border-border bg-background/95 text-foreground'
+            )}
+          >
+            {notes.status === 'typing' && 'Draft'}
+            {notes.status === 'saving' && 'Saving...'}
+            {notes.status === 'saved' && 'Saved ✓'}
+            {notes.status === 'error' && 'Could not save'}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {notesOpen && (
+          <motion.div
+            ref={notesPanelRef}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className={cn(
+              'fixed bottom-20 z-[65] w-[min(92vw,420px)]',
+              floatingOffsetClass ?? 'right-5',
+              'rounded-2xl border border-border bg-card p-4 shadow-2xl backdrop-blur'
+            )}
+          >
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground">
+                Personal Notes
+              </p>
+              <div className="text-[11px] text-muted-foreground min-h-4">
+                {notes.status === 'idle' && 'Auto-save enabled'}
+                {notes.status === 'typing' && 'Draft'}
+                {notes.status === 'saving' && 'Saving...'}
+                {notes.status === 'error' && 'Could not save'}
+                <AnimatePresence>
+                  {notes.status === 'saved' && (
+                    <motion.span
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="text-emerald-600"
+                    >
+                      Saved ✓
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+            <textarea
+              value={notes.notes}
+              onChange={(e) => notes.onChange(e.target.value)}
+              placeholder="Write your observations here..."
+              className={cn(
+                'min-h-36 w-full resize-y rounded-xl border border-border bg-background px-3 py-2.5 text-sm',
+                'text-foreground placeholder:text-muted-foreground/60',
+                'focus:outline-none focus:ring-2 focus:ring-primary/30'
+              )}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </article>
   )
 })
