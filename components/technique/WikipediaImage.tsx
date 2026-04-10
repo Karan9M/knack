@@ -144,8 +144,10 @@ export function WikipediaImage({
           src={image.url}
           alt={image.caption}
           className="w-full h-full object-cover"
-          loading="lazy"
+          loading="eager"
+          fetchPriority="high"
           decoding="async"
+          unoptimized
         />
       </div>
       <figcaption

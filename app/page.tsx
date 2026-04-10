@@ -31,6 +31,51 @@ interface PastPlan {
   totalCount: number
 }
 
+const PAST_PLANS_CACHE_KEY = 'knack_past_plans_v1'
+
+function readPastPlansCache(): PastPlan[] {
+  try {
+    const raw = localStorage.getItem(PAST_PLANS_CACHE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(
+      (p): p is PastPlan =>
+        typeof p === 'object' &&
+        p !== null &&
+        typeof p.id === 'string' &&
+        typeof p.hobby === 'string' &&
+        typeof p.currentLevel === 'string' &&
+        typeof p.targetLevel === 'string' &&
+        typeof p.lastActiveAt === 'string' &&
+        typeof p.masteredCount === 'number' &&
+        typeof p.totalCount === 'number'
+    )
+  } catch {
+    return []
+  }
+}
+
+function writePastPlansCache(plans: PastPlan[]) {
+  try {
+    localStorage.setItem(PAST_PLANS_CACHE_KEY, JSON.stringify(plans))
+  } catch {
+    // Ignore storage failures (private mode / quota)
+  }
+}
+
+async function parseJsonResponse<T>(res: Response): Promise<T> {
+  const contentType = res.headers.get('content-type') ?? ''
+  if (contentType.toLowerCase().includes('application/json')) {
+    return (await res.json()) as T
+  }
+
+  const body = await res.text()
+  const looksLikeHtml = body.includes('<!DOCTYPE') || body.includes('<html')
+  const suffix = looksLikeHtml ? ' API route is likely unavailable right now.' : ''
+  throw new Error(`Request failed (${res.status} ${res.statusText}).${suffix}`)
+}
+
 // These heights must stay in sync with the shelf-line divs in the decorator columns
 // so the horizontal rules perfectly bisect the left/right borders at content seams.
 const HERO_H = 300
@@ -58,13 +103,16 @@ export default function OnboardingPage() {
   }
 
   useEffect(() => {
+    const cached = readPastPlansCache()
+    if (cached.length > 0) setPastPlans(cached)
+
     const sessionId = getSessionId()
     fetch('/api/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionId }),
     })
-      .then((r) => r.json())
+      .then((r) => parseJsonResponse<{ plans: Plan[]; streak: StreakData }>(r))
       .then((data: { plans: Plan[]; streak: StreakData }) => {
         const mapped: PastPlan[] = (data.plans ?? []).map((p) => ({
           id: p.id,
@@ -76,6 +124,7 @@ export default function OnboardingPage() {
           totalCount: p.techniques.length,
         }))
         setPastPlans(mapped)
+        writePastPlansCache(mapped)
       })
       .catch(() => {})
   }, [])
@@ -104,10 +153,10 @@ export default function OnboardingPage() {
         body: JSON.stringify({ hobby, currentLevel, targetLevel, sessionId }),
       })
       if (!res.ok) {
-        const data = (await res.json()) as { error?: string }
+        const data = await parseJsonResponse<{ error?: string }>(res)
         throw new Error(data.error ?? 'Failed to generate plan')
       }
-      const { planId, techniques } = (await res.json()) as GeneratePlanResponse
+      const { planId, techniques } = await parseJsonResponse<GeneratePlanResponse>(res)
       const plan: Plan = {
         id: planId,
         hobby,
@@ -118,6 +167,18 @@ export default function OnboardingPage() {
         lastActiveAt: new Date().toISOString(),
       }
       setPlan(plan)
+      const latest: PastPlan = {
+        id: planId,
+        hobby,
+        currentLevel,
+        targetLevel,
+        lastActiveAt: plan.lastActiveAt,
+        masteredCount: 0,
+        totalCount: techniques.length,
+      }
+      const merged = [latest, ...pastPlans.filter((p) => p.id !== planId)].slice(0, 20)
+      setPastPlans(merged)
+      writePastPlansCache(merged)
       router.push(`/plan/${planId}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')

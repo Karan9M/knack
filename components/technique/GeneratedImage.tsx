@@ -109,7 +109,10 @@ export function GeneratedImage({
               src={meta.url}
               alt={`${techniqueName} in ${hobby}`}
               className="w-full h-full object-cover"
+              loading="eager"
+              fetchPriority="high"
               decoding="async"
+              unoptimized
               onLoad={() => setImgLoaded(true)}
               onError={() => setFailed(true)}
             />

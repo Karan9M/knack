@@ -25,6 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
+      suppressHydrationWarning
       lang="en"
       className={cn(dmSans.variable, 'h-full antialiased')}
       style={{ fontFamily: 'var(--font-dm-sans)' }}
