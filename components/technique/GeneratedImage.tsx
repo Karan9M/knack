@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { usePlanStore } from '@/store/planStore'
 import { useUIStore } from '@/store/uiStore'
 import type { ContentType } from '@/types'
+import Image from 'next/image'
 
 interface GeneratedImageProps {
   techniqueId: string
@@ -102,7 +103,9 @@ export function GeneratedImage({
       {meta && (
         <figure className={cn(showSkeleton && 'hidden')}>
           <div className={cn('w-full overflow-hidden rounded-xl', RESERVED_H)}>
-            <img
+            <Image
+              width={100}
+              height={100}
               src={meta.url}
               alt={`${techniqueName} in ${hobby}`}
               className="w-full h-full object-cover"

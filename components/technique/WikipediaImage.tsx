@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { usePlanStore } from '@/store/planStore'
 import type { WikipediaImage as WikipediaImageType } from '@/types'
 import { cn } from '@/lib/utils'
+import Image from 'next/image'
 
 interface WikipediaImageProps {
   techniqueId: string
@@ -137,7 +138,9 @@ export function WikipediaImage({
     <figure className="my-8">
       {/* Fixed-height container prevents layout shift when the bitmap decodes */}
       <div className={cn('w-full overflow-hidden rounded-xl', RESERVED_H)}>
-        <img
+        <Image
+          width={100}
+          height={100}
           src={image.url}
           alt={image.caption}
           className="w-full h-full object-cover"
