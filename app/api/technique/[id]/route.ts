@@ -6,6 +6,7 @@ import {
   saveMdxContent,
   saveWikipediaImage,
   saveGeneratedImage,
+  saveTechniqueNotes,
 } from '@/lib/db'
 import type { YouTubeVideo, WikipediaImage } from '@/types'
 
@@ -42,6 +43,10 @@ const PatchBodySchema = z.discriminatedUnion('action', [
     action: z.literal('generatedImage'),
     url: z.string().url(),
   }),
+  z.object({
+    action: z.literal('notes'),
+    notes: z.string().max(5000),
+  }),
 ])
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -72,6 +77,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         break
       case 'generatedImage':
         await saveGeneratedImage(id, parsed.data.url)
+        break
+      case 'notes':
+        await saveTechniqueNotes(id, parsed.data.notes)
         break
     }
 

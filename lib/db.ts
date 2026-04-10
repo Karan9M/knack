@@ -217,6 +217,13 @@ export async function saveGeneratedImage(techniqueId: string, url: string): Prom
   if (error) throw new Error(`Failed to save generated image: ${error.message}`)
 }
 
+export async function saveTechniqueNotes(techniqueId: string, notes: string): Promise<void> {
+  const db = getDb()
+  const { error } = await db.from('techniques').update({ notes }).eq('id', techniqueId)
+
+  if (error) throw new Error(`Failed to save notes: ${error.message}`)
+}
+
 // ---------------------------------------------------------------------------
 // Streaks
 // ---------------------------------------------------------------------------
@@ -295,6 +302,7 @@ interface TechniqueRow {
   practice_task: PracticeTask | null
   mdx_content: string | null
   wikipedia_image: WikipediaImage | null
+  notes: string | null
   status: string
   completed_at: string | null
 }
@@ -336,6 +344,7 @@ function rowToTechnique(t: TechniqueRow): Technique {
     practiceTask: t.practice_task ?? undefined,
     mdxContent: t.mdx_content ?? undefined,
     wikipediaImage: t.wikipedia_image ?? undefined,
+    notes: t.notes ?? undefined,
     status: t.status as TechniqueStatus,
     completedAt: t.completed_at ?? undefined,
   }

@@ -64,6 +64,7 @@ export interface Technique {
   mdxContent?: string
   wikipediaImage?: WikipediaImage
   generatedImage?: string
+  notes?: string
   position: number
 }
 
