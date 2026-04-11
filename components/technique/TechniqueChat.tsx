@@ -157,7 +157,10 @@ export function TechniqueChat({ technique, hobby }: TechniqueChatProps) {
       <div
         ref={barRef}
         className={cn(
-          'fixed bottom-6 z-[67] left-4 right-20 md:right-auto md:left-1/2 md:w-[min(86vw,760px)] md:-translate-x-1/2'
+          'fixed z-[67] md:right-auto md:left-1/2 md:w-[min(86vw,760px)] md:-translate-x-1/2',
+          'left-[max(1rem,env(safe-area-inset-left,0px))]',
+          'right-[max(5.75rem,calc(env(safe-area-inset-right,0px)+5.25rem))]',
+          'bottom-[max(1.5rem,env(safe-area-inset-bottom,0px)+0.75rem)]'
         )}
       >
         <div className="relative p-[1.5px] rounded-2xl overflow-hidden shadow-lg border border-border">
@@ -167,40 +170,43 @@ export function TechniqueChat({ technique, hobby }: TechniqueChatProps) {
             </MovingBorder>
           </div>
 
-          <div className="relative flex h-[62px] items-center gap-2.5 rounded-[calc(1rem-1px)] bg-card px-4">
+          <div className="relative flex min-h-[60px] items-center gap-2 rounded-[calc(1rem-1px)] bg-card py-1.5 pl-2.5 pr-2 sm:gap-2.5 sm:pl-3 sm:pr-2.5 md:px-4">
             <button
               type="button"
               onClick={() => setOpen((v) => !v)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-primary/80 hover:bg-secondary shrink-0"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-primary/80 hover:bg-secondary"
               aria-label={open ? 'Close chat panel' : 'Open chat panel'}
             >
               {open ? <X className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
             </button>
 
-            <input
-              value={input}
-              onFocus={() => setOpen(true)}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  void sendMessage()
-                }
-              }}
-              placeholder={`Ask about ${technique.name}...`}
-              className={cn(
-                'h-9 flex-1 border-0 bg-transparent px-0 py-2 text-[1.0625rem]',
-                'placeholder:text-muted-foreground/70 focus:outline-none'
-              )}
-            />
+            <div className="min-w-0 flex-1">
+              <input
+                value={input}
+                onFocus={() => setOpen(true)}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    void sendMessage()
+                  }
+                }}
+                placeholder={`Ask about ${technique.name}...`}
+                className={cn(
+                  'h-10 w-full min-w-0 border-0 bg-transparent py-2 text-[0.9375rem] sm:text-[1.0625rem]',
+                  'placeholder:text-muted-foreground/70 focus:outline-none'
+                )}
+              />
+            </div>
 
             <button
               type="button"
               onClick={() => void sendMessage()}
               disabled={fetching || streaming || input.trim().length === 0}
               className={cn(
-                'h-9 w-9 rounded-full flex items-center justify-center',
-                'bg-secondary text-foreground disabled:opacity-50'
+                'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
+                'bg-secondary text-foreground disabled:opacity-50',
+                'touch-manipulation'
               )}
               aria-label="Send message"
             >

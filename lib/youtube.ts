@@ -1,16 +1,12 @@
 import type { YouTubeVideo } from '@/types'
 import { YOUTUBE_MAX_RESULTS } from '@/constants'
 
-// ─── Duration helpers ─────────────────────────────────────────────────────────
-
-/** Parse ISO 8601 duration (PT1H30M15S) to total seconds. */
 function parseDurationSeconds(iso: string): number {
   const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
   if (!m) return 0
   return parseInt(m[1] ?? '0') * 3600 + parseInt(m[2] ?? '0') * 60 + parseInt(m[3] ?? '0')
 }
 
-/** Format seconds as "M:SS" or "H:MM:SS" for display. */
 function formatDuration(totalSeconds: number): string {
   const h = Math.floor(totalSeconds / 3600)
   const m = Math.floor((totalSeconds % 3600) / 60)
@@ -21,10 +17,7 @@ function formatDuration(totalSeconds: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-// YouTube Shorts are ≤ 60 s. Use 62 s as the cutoff to handle encoding rounding.
 const SHORTS_CUTOFF_SECONDS = 62
-
-// ─── API response shapes ──────────────────────────────────────────────────────
 
 interface SearchItem {
   id: { videoId: string }
@@ -52,8 +45,6 @@ interface VideoDetailsResponse {
   items?: VideoDetailItem[]
 }
 
-// ─── Main export ──────────────────────────────────────────────────────────────
-
 export async function searchYouTubeVideos(
   query: string,
   maxResults: number = YOUTUBE_MAX_RESULTS
@@ -61,10 +52,8 @@ export async function searchYouTubeVideos(
   const apiKey = process.env.YOUTUBE_API_KEY
   if (!apiKey) throw new Error('YOUTUBE_API_KEY is not configured')
 
-  // Fetch 3× candidates so we still hit maxResults after Shorts are filtered out
   const fetchCount = Math.min(maxResults * 3, 15)
 
-  // ── Step 1: search.list ───────────────────────────────────────────────────
   const searchParams = new URLSearchParams({
     part: 'snippet',
     q: query,
@@ -80,20 +69,31 @@ export async function searchYouTubeVideos(
   })
 
   if (!searchRes.ok) {
+    const errBody = await searchRes.text().catch(() => '')
+    console.warn(
+      `[youtube] search.list ${searchRes.status} ${searchRes.statusText}:`,
+      errBody.slice(0, 500)
+    )
+    if (searchRes.status === 403 || searchRes.status === 429 || searchRes.status === 401) {
+      return []
+    }
     throw new Error(`YouTube API error: ${searchRes.status} ${searchRes.statusText}`)
   }
 
   const searchData = (await searchRes.json()) as SearchResponse
 
   if (searchData.error) {
-    throw new Error(`YouTube API error: ${searchData.error.message}`)
+    const msg = searchData.error.message ?? 'Unknown YouTube error'
+    console.warn('[youtube] search.list error payload:', msg)
+    if (/quota|forbidden|exceeded|403|429|401/i.test(msg)) {
+      return []
+    }
+    throw new Error(`YouTube API error: ${msg}`)
   }
 
   const candidates = searchData.items ?? []
   if (!candidates.length) return []
 
-  // ── Step 2: videos.list (contentDetails) — cheap at 1 quota unit ─────────
-  // Gets exact ISO 8601 durations so we can reliably detect Shorts (≤ 62 s).
   const ids = candidates.map((c) => c.id.videoId).join(',')
   const detailParams = new URLSearchParams({
     part: 'contentDetails',
@@ -113,10 +113,9 @@ export async function searchYouTubeVideos(
       }
     }
   } catch {
-    // Non-fatal — if duration fetch fails we fall through without filtering
+    /* ignore */
   }
 
-  // ── Step 3: filter Shorts, take up to maxResults ──────────────────────────
   const results: YouTubeVideo[] = []
 
   for (const item of candidates) {
@@ -124,7 +123,6 @@ export async function searchYouTubeVideos(
 
     const seconds = durationMap[item.id.videoId]
 
-    // If we have duration data and it's a Short, skip it
     if (seconds !== undefined && seconds <= SHORTS_CUTOFF_SECONDS) continue
 
     results.push({

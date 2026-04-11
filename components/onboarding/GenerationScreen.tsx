@@ -19,35 +19,20 @@ export function GenerationScreen({ hobby }: GenerationScreenProps) {
       transition={{ duration: 0.3 }}
       className="flex flex-col items-center justify-center gap-8 py-16 text-center"
     >
-      {/* ── Animated KnackIcon with orbital rings ── */}
-      <div className="relative flex items-center justify-center h-28 w-28">
-        {/* Slow outer ring */}
+      {/* ── Knack logo: orbital rings (no orbiting dot) + subtle pulse ── */}
+      <div className="relative flex h-28 w-28 items-center justify-center">
         <motion.div
           className="absolute inset-0 rounded-full border border-primary/20"
           animate={reduced ? {} : { rotate: 360 }}
           transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
         />
-        {/* Dashed counter-ring */}
         <motion.div
           className="absolute inset-4 rounded-full border border-dashed border-primary/30"
           animate={reduced ? {} : { rotate: -360 }}
           transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
         />
-        {/* Orbiting dot */}
-        {!reduced && (
-          <motion.div
-            className="absolute h-2.5 w-2.5 rounded-full bg-primary"
-            style={{ top: 0, left: '50%', marginLeft: -5, marginTop: -5 }}
-            animate={{ rotate: 360 }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-            transformTemplate={({ rotate }) =>
-              `rotate(${rotate}) translateY(-56px) rotate(-${rotate})`
-            }
-          />
-        )}
-        {/* Icon with breathe */}
         <motion.div
-          animate={reduced ? {} : { scale: [1, 1.1, 1], opacity: [0.85, 1, 0.85] }}
+          animate={reduced ? {} : { scale: [1, 1.06, 1], opacity: [0.88, 1, 0.88] }}
           transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
         >
           <KnackIcon size={38} />

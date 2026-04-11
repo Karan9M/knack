@@ -37,8 +37,6 @@ const GeneratedImage = dynamic(
   { ssr: false }
 )
 
-// ── PracticeTaskCard ──────────────────────────────────────────────────────────
-
 function PracticeTaskCard({ task }: { task: PracticeTask }) {
   return (
     <div className="my-8 rounded-2xl border border-primary/25 bg-primary/5 overflow-hidden">
@@ -70,8 +68,6 @@ function PracticeTaskCard({ task }: { task: PracticeTask }) {
   )
 }
 
-// ── TechniqueContent ──────────────────────────────────────────────────────────
-
 interface TechniqueContentProps {
   technique: Technique
   plan: Plan
@@ -87,8 +83,6 @@ export const TechniqueContent = memo(function TechniqueContent({
 }: TechniqueContentProps) {
   const { markMastered, skipTechnique } = useTechniqueActions()
 
-  // Only read id+name of the next technique — avoids re-rendering when unrelated
-  // fields (videoCache, wikipediaImage, mdxContent) change on other techniques.
   const nextTechnique = usePlanStore(
     useShallow((s) => {
       const techs = s.activePlan?.techniques ?? plan.techniques
@@ -98,7 +92,6 @@ export const TechniqueContent = memo(function TechniqueContent({
     })
   )
 
-  // Narrow action-only selector — action references are stable, never causes re-renders
   const setSelectedTechniqueId = useUIStore((s) => s.setSelectedTechniqueId)
 
   const isMastered = technique.status === 'mastered'

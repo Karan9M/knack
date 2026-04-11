@@ -16,12 +16,10 @@ export function useVideoSearch(): UseVideoSearchReturn {
   const [videos, setVideos] = useState<YouTubeVideo[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // Narrow selector — action refs are stable in Zustand, so this never causes re-renders
   const updateTechniqueVideos = usePlanStore((s) => s.updateTechniqueVideos)
 
   const fetchVideos = useCallback(
     async (techniqueId: string, query: string, cached?: YouTubeVideo[]) => {
-      // Use cached videos if available
       if (cached?.length) {
         setVideos(cached)
         return
@@ -40,14 +38,21 @@ export function useVideoSearch(): UseVideoSearchReturn {
         if (!res.ok) throw new Error(`Failed to fetch videos: ${res.statusText}`)
 
         const data = (await res.json()) as { videos: YouTubeVideo[] }
-        setVideos(data.videos)
+        const list = data.videos ?? []
+        setVideos(list)
 
-        // Persist to Supabase + update store
-        updateTechniqueVideos(techniqueId, data.videos)
+        if (list.length === 0) {
+          setError(
+            'No videos loaded. If this happens often, the YouTube API quota or key limits may be active — try again in a while or search on YouTube directly.'
+          )
+          return
+        }
+
+        updateTechniqueVideos(techniqueId, list)
         fetch(`/api/technique/${techniqueId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'cacheVideos', videos: data.videos }),
+          body: JSON.stringify({ action: 'cacheVideos', videos: list }),
         }).catch(console.error)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load videos')

@@ -1,30 +1,36 @@
 'use client'
 
-import { useEffect, useState, memo } from 'react'
+import { Children, isValidElement, useEffect, useState, memo, type ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { usePlanStore } from '@/store/planStore'
+import { useUIStore } from '@/store/uiStore'
+import { MermaidDiagram } from '@/components/technique/MermaidDiagram'
+import { cn } from '@/lib/utils'
 import type { Technique } from '@/types'
+
+function preWrapsMermaid(children: ReactNode) {
+  const first = Children.toArray(children)[0]
+  if (!isValidElement(first)) return false
+  const props = first.props as { chart?: unknown }
+  return typeof props.chart === 'string'
+}
 
 interface MarkdownContentProps {
   technique: Technique
 }
 
-// Wrapped in memo so it only re-renders when technique.id changes, not on every store update
 export const MarkdownContent = memo(function MarkdownContent({ technique }: MarkdownContentProps) {
   const [content, setContent] = useState<string | null>(technique.mdxContent ?? null)
   const [isLoading, setIsLoading] = useState(!technique.mdxContent)
   const [error, setError] = useState(false)
 
-  // Narrow selectors — only subscribe to what this component actually uses
   const updateTechniqueMdx = usePlanStore((s) => s.updateTechniqueMdx)
   const hobby = usePlanStore((s) => s.activePlan?.hobby ?? '')
-  // Watch only this technique's mdxContent in the store; ignores all other changes
   const storeMdx = usePlanStore(
     (s) => s.activePlan?.techniques.find((t) => t.id === technique.id)?.mdxContent
   )
 
-  // Sync from store when content arrives (e.g. navigating back to a cached technique)
   useEffect(() => {
     if (storeMdx && !content) {
       setContent(storeMdx)
@@ -41,6 +47,8 @@ export const MarkdownContent = memo(function MarkdownContent({ technique }: Mark
     setIsLoading(true)
     setError(false)
 
+    const preferences = useUIStore.getState().preferences ?? undefined
+
     fetch('/api/generate-content', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -50,6 +58,7 @@ export const MarkdownContent = memo(function MarkdownContent({ technique }: Mark
         hobby,
         whyItMatters: technique.whyItMatters,
         keyConcepts: technique.keyConcepts,
+        ...(preferences ? { preferences } : {}),
       }),
     })
       .then((r) => r.json())
@@ -115,6 +124,80 @@ export const MarkdownContent = memo(function MarkdownContent({ technique }: Mark
             <strong className="font-semibold text-foreground">{children}</strong>
           ),
           em: ({ children }) => <em className="italic text-foreground/70">{children}</em>,
+          pre: ({ children }) => {
+            if (preWrapsMermaid(children)) {
+              return <div className="my-6 w-full">{children}</div>
+            }
+            return (
+              <pre
+                className={cn(
+                  'my-6 flex w-full justify-center overflow-x-auto rounded-xl border border-border',
+                  'bg-muted/40 px-3 py-4 text-[13px] leading-relaxed font-mono text-foreground/90'
+                )}
+              >
+                {children}
+              </pre>
+            )
+          },
+          code: ({ className, children, ...props }) => {
+            const lang = /language-(\w+)/.exec(className ?? '')?.[1]
+            if (lang === 'mermaid') {
+              const text = String(children).replace(/\n$/, '')
+              return <MermaidDiagram chart={text} />
+            }
+            const isBlock = typeof className === 'string' && className.includes('language-')
+            if (isBlock) {
+              return (
+                <code
+                  className={cn(
+                    className,
+                    'block w-max max-w-full text-left font-mono text-[13px] leading-relaxed'
+                  )}
+                  {...props}
+                >
+                  {children}
+                </code>
+              )
+            }
+            return (
+              <code
+                className="rounded bg-muted px-1.5 py-0.5 text-[0.9em] font-mono text-foreground/90"
+                {...props}
+              >
+                {children}
+              </code>
+            )
+          },
+          table: ({ children }) => (
+            <div className="my-6 flex w-full justify-center overflow-x-auto">
+              <table
+                className={cn(
+                  'border-separate border-spacing-0 overflow-hidden rounded-lg text-center',
+                  'text-[11px] font-mono leading-none md:text-xs',
+                  'ring-1 ring-border/50 bg-muted/10'
+                )}
+              >
+                {children}
+              </table>
+            </div>
+          ),
+          thead: ({ children }) => (
+            <thead className="bg-muted/35 text-foreground/90">{children}</thead>
+          ),
+          tbody: ({ children }) => (
+            <tbody className="[&_tr:last-child_td]:border-b-0">{children}</tbody>
+          ),
+          tr: ({ children }) => <tr>{children}</tr>,
+          th: ({ children }) => (
+            <th className="border-b border-r border-border/35 px-1 py-1.5 font-medium last:border-r-0 md:px-1.5">
+              {children}
+            </th>
+          ),
+          td: ({ children }) => (
+            <td className="border-b border-r border-border/25 px-1 py-1.5 last:border-r-0 md:px-1.5">
+              {children}
+            </td>
+          ),
         }}
       >
         {content}

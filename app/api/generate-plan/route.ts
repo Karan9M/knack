@@ -16,9 +16,14 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { hobby, currentLevel, targetLevel, sessionId } = parsed.data
+    const { hobby, currentLevel, targetLevel, sessionId, preferences } = parsed.data
 
-    const rawTechniques = await generatePlanTechniques(hobby, currentLevel, targetLevel)
+    const rawTechniques = await generatePlanTechniques(
+      hobby,
+      currentLevel,
+      targetLevel,
+      preferences
+    )
 
     const plan = await createPlan({
       sessionId,
