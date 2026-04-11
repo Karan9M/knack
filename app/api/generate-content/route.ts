@@ -79,6 +79,14 @@ DIAGRAM MODE (this learner chose **diagrams** — structure, space, relationship
   - \`quadrantChart\` (two-axis placement of concepts)
   - \`graph TB\` **with \`subgraph\` clusters** naming zones / layers / components (not a single vertical chain).
 - For board / grid topics (chess, formations, courts): only add a **markdown pipe table** when a **full grid** (e.g. 8×8 position) truly helps. **Do not** add a tiny extra table that only repeats starting-piece letters (R N B Q K…) in a second row of boxes beside the mindmap — that looks broken; keep piece-set context inside the mindmap text instead unless you show a real board.
+- **Mindmap / timeline / quadrantChart — critical:** use **indentation only** for nesting. **Never** start a nested line with Markdown bullets \`+\`, \`-\`, \`*\`, or numbered \`1.\` — Mermaid will fail. Example (valid):
+  \`\`\`
+  mindmap
+    Root idea
+      Child one
+      Child two
+        Grandchild
+  \`\`\`
 - Forbidden: long lines made of pipes/dashes outside a proper markdown table; any \`\`\`text fence; using flowchart-only chains like flowchart TD with no subgraphs/mindmap/quadrant/timeline.`
 
           return imageStyle === 'flowcharts' ? flowchartRules : diagramRules

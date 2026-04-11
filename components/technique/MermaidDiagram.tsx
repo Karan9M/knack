@@ -34,10 +34,15 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
     void (async () => {
       try {
         const mermaid = (await import('mermaid')).default
+        mermaid.setParseErrorHandler(() => {
+          /* no-op: avoid default error UI leaking into the page */
+        })
         mermaid.initialize({
           startOnLoad: false,
           theme: resolvedTheme === 'dark' ? 'dark' : 'default',
           securityLevel: 'strict',
+          suppressErrorRendering: true,
+          logLevel: 'error',
           fontFamily: 'ui-sans-serif, system-ui, sans-serif',
           flowchart: {
             htmlLabels: false,
@@ -47,6 +52,9 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
         const id = `mmd-${uid}-${Date.now()}`
         const { svg } = await mermaid.render(id, source)
         if (cancelled || !ref.current) return
+        if (/syntax error in text|parse error|mermaid version/i.test(svg)) {
+          throw new Error('Mermaid rendered an error SVG')
+        }
         ref.current.innerHTML = svg
       } catch {
         if (!cancelled) {
@@ -65,13 +73,15 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
     return (
       <div
         className={cn(
-          'my-6 rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-muted-foreground'
+          'my-6 rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground'
         )}
+        role="status"
       >
-        <p className="mb-2 font-medium text-foreground">Could not render this diagram.</p>
-        <pre className="max-h-48 overflow-auto text-xs font-mono whitespace-pre-wrap text-foreground/80">
-          {chart}
-        </pre>
+        <p className="font-medium text-foreground">This diagram couldn&apos;t be displayed.</p>
+        <p className="mt-1.5 text-xs leading-relaxed">
+          The lesson may use diagram formatting we couldn&apos;t parse. You can still follow the
+          text above—nothing is wrong with your device.
+        </p>
       </div>
     )
   }

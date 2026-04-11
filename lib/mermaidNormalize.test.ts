@@ -17,4 +17,36 @@ describe('normalizeMermaidSource', () => {
     const raw = 'A -->|yes| B\nA -->|no| C'
     expect(normalizeMermaidSource(raw)).toBe(raw)
   })
+
+  it('strips markdown list markers from mindmap lines', () => {
+    const raw = `mindmap
+  Center Control
+    + Pawns in center
+    + Key squares
+  Pawn Structure
+    - Pawn chain
+    * Pawn island
+`
+    const out = normalizeMermaidSource(raw)
+    expect(out).toContain('Pawns in center')
+    expect(out).not.toContain('+ Pawns')
+    expect(out).not.toContain('- Pawn chain')
+    expect(out).not.toContain('* Pawn island')
+  })
+
+  it('strips numbered list markers in mindmap', () => {
+    const raw = `mindmap
+  Root
+    1. First
+    2. Second
+`
+    const out = normalizeMermaidSource(raw)
+    expect(out).toMatch(/^\s*First\s*$/m)
+    expect(out).toMatch(/^\s*Second\s*$/m)
+  })
+
+  it('does not strip hyphens from flowchart edges', () => {
+    const raw = 'flowchart TD\n  A --> B'
+    expect(normalizeMermaidSource(raw)).toBe(raw)
+  })
 })
