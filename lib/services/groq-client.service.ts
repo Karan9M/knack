@@ -1,8 +1,9 @@
 import Groq from 'groq-sdk'
+import { getGroqApiKeysInOrder } from '@/lib/groqWithKeyFallback'
 
 /**
- * Single construction point for the Groq SDK from server environment.
- * Keeps API key validation consistent across routes and plan generation.
+ * Groq SDK from the primary env key only.
+ * Prefer {@link withGroqApiKeyFallback} from `@/lib/groqWithKeyFallback` when calling the API so a secondary key can be used on rate limits.
  */
 export class GroqClientService {
   readonly sdk: Groq
@@ -12,8 +13,8 @@ export class GroqClientService {
   }
 
   static fromEnv(): GroqClientService {
-    const apiKey = process.env.GROQ_API_KEY
-    if (!apiKey) throw new Error('GROQ_API_KEY is not configured')
-    return new GroqClientService(apiKey)
+    const keys = getGroqApiKeysInOrder()
+    if (keys.length === 0) throw new Error('GROQ_API_KEY is not configured')
+    return new GroqClientService(keys[0])
   }
 }

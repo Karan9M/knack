@@ -1,13 +1,7 @@
-import Groq from 'groq-sdk'
 import type { SkillLevel, UserPreferences } from '@/types'
 import { GeminiPlanResponseSchema, type GeminiTechnique } from '@/lib/validators'
 import { GROQ_MODEL } from '@/constants'
-
-function getGroqClient(): Groq {
-  const apiKey = process.env.GROQ_API_KEY
-  if (!apiKey) throw new Error('GROQ_API_KEY is not configured')
-  return new Groq({ apiKey })
-}
+import { withGroqApiKeyFallback } from '@/lib/groqWithKeyFallback'
 
 function buildPreferenceInstructions(prefs: UserPreferences): string {
   const { imageStyle, learningMode, sessionLength } = prefs
@@ -100,17 +94,17 @@ export async function generatePlanTechniques(
   targetLevel: SkillLevel,
   preferences?: UserPreferences | null
 ): Promise<GeminiTechnique[]> {
-  const client = getGroqClient()
-
   const prompt = buildPlanPrompt(hobby, currentLevel, targetLevel, preferences)
 
-  const response = await client.chat.completions.create({
-    model: GROQ_MODEL,
-    messages: [{ role: 'user', content: prompt }],
-    temperature: 0.7,
-  })
-
-  const text = (response.choices[0]?.message?.content ?? '').trim()
+  const text = await withGroqApiKeyFallback('generate-plan', (client) =>
+    client.chat.completions
+      .create({
+        model: GROQ_MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+      })
+      .then((response) => (response.choices[0]?.message?.content ?? '').trim())
+  )
 
   const cleaned = text
     .replace(/^```(?:json)?\s*/i, '')

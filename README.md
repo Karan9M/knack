@@ -8,17 +8,17 @@ Plans and progress are tied to an anonymous **browser session** and persisted in
 
 ## Tech stack
 
-| Layer        | Choice                                                                                                 |
-| ------------ | ------------------------------------------------------------------------------------------------------ |
-| Framework    | Next.js 16 (App Router), React 19, TypeScript                                                          |
-| Styling      | Tailwind CSS 4, shadcn-style UI (`components/ui`, `components.json`)                                   |
-| Client state | Zustand (`store/planStore`, `store/uiStore`)                                                           |
-| Validation   | Zod                                                                                                    |
-| Persistence  | Supabase (PostgreSQL) via `lib/db.ts`, `lib/supabase.ts`                                               |
-| AI           | Groq (`llama-3.3-70b-versatile` in `constants`) — plans, MDX lessons, chat                             |
-| Media        | YouTube Data API (`lib/youtube.ts`), Wikipedia (`lib/wikipedia.ts`), Pexels (`app/api/generate-image`) |
+| Layer        | Choice                                                                                                                                                                   |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Framework    | Next.js 16 (App Router), React 19, TypeScript                                                                                                                            |
+| Styling      | Tailwind CSS 4, shadcn-style UI (`components/ui`, `components.json`)                                                                                                     |
+| Client state | Zustand (`store/planStore`, `store/uiStore`)                                                                                                                             |
+| Validation   | Zod                                                                                                                                                                      |
+| Persistence  | Supabase (PostgreSQL) via `lib/db.ts`, `lib/supabase.ts`                                                                                                                 |
+| AI           | Groq (`llama-3.3-70b-versatile`) — plans, MDX lessons, chat; optional **second API key** for quota fallback ([`lib/groqWithKeyFallback.ts`](lib/groqWithKeyFallback.ts)) |
+| Media        | YouTube Data API (`lib/youtube.ts`), Wikipedia (`lib/wikipedia.ts`), Pexels (`app/api/generate-image`)                                                                   |
 
-Groq access is centralized through [`lib/ai.ts`](lib/ai.ts) (plan generation) and [`lib/services/groq-client.service.ts`](lib/services/groq-client.service.ts) (e.g. technique chat).
+Groq calls for plans, MDX, and chat go through [`lib/groqWithKeyFallback.ts`](lib/groqWithKeyFallback.ts): the primary `GROQ_API_KEY` is used first; if Groq returns rate limits or transient errors, the same request is retried once with `GROQ_API_KEY_FALLBACK` when set (separate Groq project key, same API).
 
 ## Architecture
 
@@ -65,15 +65,15 @@ flowchart TB
 
 | Route                        | Role                                                                                      |
 | ---------------------------- | ----------------------------------------------------------------------------------------- |
-| `POST /api/generate-plan`    | Groq: structured plan (techniques) from hobby, levels, preferences                        |
-| `POST /api/generate-content` | Groq: per-technique MDX lesson content                                                    |
+| `POST /api/generate-plan`    | Groq (+ optional fallback key): structured plan from hobby, levels, preferences           |
+| `POST /api/generate-content` | Groq (+ optional fallback key): per-technique MDX lesson content                          |
 | `POST /api/generate-image`   | Pexels search → hero image URL (503 if `PEXELS_API_KEY` unset)                            |
 | `POST /api/fetch-videos`     | YouTube search, Shorts filtered via duration                                              |
 | `GET /api/wikipedia`         | Wikipedia summary image for a query                                                       |
 | `POST /api/sessions`         | List plans for a session id                                                               |
 | `GET /api/plan/[id]`         | Plan JSON by id (SSR uses `getPlanById` directly; route available for clients or tooling) |
 | `PATCH /api/technique/[id]`  | Partial technique updates (notes, videos, images, mdx, etc.)                              |
-| `POST /api/technique-chat`   | Groq: Q&A in context of a technique                                                       |
+| `POST /api/technique-chat`   | Groq (+ optional fallback key): Q&A in context of a technique                             |
 
 ## Getting started
 
@@ -90,7 +90,8 @@ Open [http://localhost:3000](http://localhost:3000). If you use **pnpm**, `pnpm 
 
 | Variable                    | Required | Purpose                                                                                                   |
 | --------------------------- | -------- | --------------------------------------------------------------------------------------------------------- |
-| `GROQ_API_KEY`              | Yes      | Plan generation, markdown content, technique chat                                                         |
+| `GROQ_API_KEY`              | Yes      | Primary Groq key: plans, markdown content, technique chat                                                 |
+| `GROQ_API_KEY_FALLBACK`     | No       | Second Groq key (separate quota); used on 429 / transient 5xx / connection errors from the primary key    |
 | `YOUTUBE_API_KEY`           | Yes      | Tutorial video search                                                                                     |
 | `SUPABASE_URL`              | Yes      | Database URL                                                                                              |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes      | Server-side writes from API routes                                                                        |
@@ -132,20 +133,20 @@ There are no automated tests for `app/api/*`, pages, components, hooks, or store
 
 ## Repository layout
 
-| Area          | Contents                                                                           |
-| ------------- | ---------------------------------------------------------------------------------- |
-| `app/`        | App Router: `layout.tsx`, home `page.tsx`, `plan/[id]/page.tsx`, `api/**/route.ts` |
-| `components/` | Onboarding, plan shell, technique UI, layout, `ui/` primitives                     |
-| `hooks/`      | Video search, streak, technique actions/notes, etc.                                |
-| `store/`      | Zustand plan + UI state                                                            |
-| `lib/`        | DB, AI, YouTube, Wikipedia, session, sanitization, validators, utils               |
-| `constants/`  | App name, endpoints, model id, limits                                              |
-| `types/`      | Shared TypeScript domain types                                                     |
-| `public/`     | Static assets including branding shots                                             |
+| Area          | Contents                                                                                                           |
+| ------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `app/`        | App Router: `layout.tsx`, home `page.tsx`, `plan/[id]/page.tsx`, `api/**/route.ts`                                 |
+| `components/` | Onboarding, plan shell, technique UI, layout, `ui/` primitives                                                     |
+| `hooks/`      | Video search, streak, technique actions/notes, etc.                                                                |
+| `store/`      | Zustand plan + UI state                                                                                            |
+| `lib/`        | DB, AI, Groq key fallback (`groqWithKeyFallback.ts`), YouTube, Wikipedia, session, sanitization, validators, utils |
+| `constants/`  | App name, endpoints, model id, limits                                                                              |
+| `types/`      | Shared TypeScript domain types                                                                                     |
+| `public/`     | Static assets including branding shots                                                                             |
 
 ## AI usage
 
-Groq is used to produce **structured JSON plans** and **long-form markdown** from prompts in [`lib/ai.ts`](lib/ai.ts) and route handlers such as [`app/api/generate-content/route.ts`](app/api/generate-content/route.ts). Responses are validated with **Zod** (`lib/validators.ts`) before persistence. Product behaviour, data model, and UI are normal application code—not generated wholesale.
+Groq produces **structured JSON plans** and **long-form markdown** from prompts in [`lib/ai.ts`](lib/ai.ts) and [`app/api/generate-content/route.ts`](app/api/generate-content/route.ts). Configure a **fallback Groq API key** (`GROQ_API_KEY_FALLBACK`) so rate-limited or failing primary-key requests automatically retry on a second Groq account ([`lib/groqWithKeyFallback.ts`](lib/groqWithKeyFallback.ts)). Responses are validated with **Zod** (`lib/validators.ts`) before persistence.
 
 ## Design and product inspiration
 

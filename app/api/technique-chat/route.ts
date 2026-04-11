@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { GROQ_MODEL } from '@/constants'
 import { TechniqueChatSchema } from '@/lib/validators'
-import { GroqClientService } from '@/lib/services/groq-client.service'
+import { withGroqApiKeyFallback } from '@/lib/groqWithKeyFallback'
 
 function buildTechniqueChatSystemPrompt(args: {
   hobby: string
@@ -53,30 +53,29 @@ export async function POST(req: NextRequest) {
       history,
     } = parsed.data
 
-    const client = GroqClientService.fromEnv().sdk
-
-    const response = await client.chat.completions.create({
-      model: GROQ_MODEL,
-      temperature: 0.4,
-      max_tokens: 450,
-      messages: [
-        {
-          role: 'system',
-          content: buildTechniqueChatSystemPrompt({
-            hobby,
-            techniqueName,
-            whyItMatters,
-            keyConcepts,
-            mdxContent,
-            notes,
-          }),
-        },
-        ...(history ?? []).map((m) => ({ role: m.role, content: m.content })),
-        { role: 'user', content: question },
-      ],
+    const systemContent = buildTechniqueChatSystemPrompt({
+      hobby,
+      techniqueName,
+      whyItMatters,
+      keyConcepts,
+      mdxContent,
+      notes,
     })
 
-    const answer = (response.choices[0]?.message?.content ?? '').trim()
+    const answer = await withGroqApiKeyFallback('technique-chat', (client) =>
+      client.chat.completions
+        .create({
+          model: GROQ_MODEL,
+          temperature: 0.4,
+          max_tokens: 450,
+          messages: [
+            { role: 'system', content: systemContent },
+            ...(history ?? []).map((m) => ({ role: m.role, content: m.content })),
+            { role: 'user', content: question },
+          ],
+        })
+        .then((response) => (response.choices[0]?.message?.content ?? '').trim())
+    )
     if (!answer) {
       return Response.json({ error: 'Empty response from model' }, { status: 502 })
     }

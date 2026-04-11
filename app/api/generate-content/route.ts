@@ -1,8 +1,9 @@
 import { type NextRequest } from 'next/server'
-import Groq from 'groq-sdk'
+import { GROQ_MODEL } from '@/constants'
 import { GenerateContentSchema } from '@/lib/validators'
 import { saveMdxContent } from '@/lib/db'
 import { sanitizeGeneratedMdx } from '@/lib/mdxSanitize'
+import { withGroqApiKeyFallback } from '@/lib/groqWithKeyFallback'
 import type { UserPreferences } from '@/types'
 
 function buildContentPrompt(
@@ -125,10 +126,6 @@ export async function POST(req: NextRequest) {
     const { techniqueId, techniqueName, hobby, whyItMatters, keyConcepts, preferences } =
       parsed.data
 
-    const apiKey = process.env.GROQ_API_KEY
-    if (!apiKey) throw new Error('GROQ_API_KEY is not configured')
-
-    const client = new Groq({ apiKey })
     const { prompt, maxTokens } = buildContentPrompt(
       techniqueName,
       hobby,
@@ -137,17 +134,18 @@ export async function POST(req: NextRequest) {
       preferences
     )
 
-    const response = await client.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-      max_tokens: maxTokens,
-    })
-
-    const raw = (response.choices[0]?.message?.content ?? '').trim()
+    const raw = await withGroqApiKeyFallback('generate-content', (client) =>
+      client.chat.completions
+        .create({
+          model: GROQ_MODEL,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.7,
+          max_tokens: maxTokens,
+        })
+        .then((response) => (response.choices[0]?.message?.content ?? '').trim())
+    )
     const content = sanitizeGeneratedMdx(raw)
 
-    // Persist to Supabase
     await saveMdxContent(techniqueId, content)
 
     return Response.json({ content }, { status: 200 })
