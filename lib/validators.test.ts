@@ -28,6 +28,33 @@ describe('GeneratePlanSchema', () => {
     const r = GeneratePlanSchema.safeParse({ ...valid, sessionId: 'not-a-uuid' })
     expect(r.success).toBe(false)
   })
+
+  it('rejects target at or below current (e.g. beginner target while intermediate)', () => {
+    const r = GeneratePlanSchema.safeParse({
+      ...valid,
+      currentLevel: 'intermediate' as const,
+      targetLevel: 'beginner' as const,
+    })
+    expect(r.success).toBe(false)
+  })
+
+  it('rejects same level when not the advanced continued-learning case', () => {
+    const r = GeneratePlanSchema.safeParse({
+      ...valid,
+      currentLevel: 'intermediate' as const,
+      targetLevel: 'intermediate' as const,
+    })
+    expect(r.success).toBe(false)
+  })
+
+  it('accepts advanced + advanced for continued learning roadmap', () => {
+    const r = GeneratePlanSchema.safeParse({
+      ...valid,
+      currentLevel: 'advanced' as const,
+      targetLevel: 'advanced' as const,
+    })
+    expect(r.success).toBe(true)
+  })
 })
 
 describe('FetchVideosSchema', () => {

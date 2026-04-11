@@ -1,5 +1,6 @@
 import { type NextRequest } from 'next/server'
 import { z } from 'zod'
+import { getUserContentPolicyViolation } from '@/lib/contentPolicy'
 import {
   updateTechniqueStatus,
   cacheVideoResults,
@@ -78,9 +79,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       case 'generatedImage':
         await saveGeneratedImage(id, parsed.data.url)
         break
-      case 'notes':
+      case 'notes': {
+        const notesViolation = getUserContentPolicyViolation(parsed.data.notes)
+        if (notesViolation) {
+          return Response.json({ error: notesViolation }, { status: 400 })
+        }
         await saveTechniqueNotes(id, parsed.data.notes)
         break
+      }
     }
 
     return Response.json({ ok: true }, { status: 200 })

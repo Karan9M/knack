@@ -15,7 +15,9 @@ import { PlanHeader } from '@/components/plan/PlanHeader'
 import { TechniqueContent } from '@/components/technique/TechniqueContent'
 import { KnackIcon } from '@/components/layout/KnackIcon'
 import { KnackWordmark } from '@/components/layout/KnackWordmark'
+import { LearningPreferencesSheet } from '@/components/settings/LearningPreferencesSheet'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { Settings } from 'lucide-react'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { getSessionId } from '@/lib/session'
 import { readResumeState, writeResumeState } from '@/lib/resumeState'
@@ -45,6 +47,7 @@ export function PlanView({ initialPlan }: PlanViewProps) {
   const selectedTechniqueId = useUIStore((s) => s.selectedTechniqueId)
   const setSelectedTechniqueId = useUIStore((s) => s.setSelectedTechniqueId)
   const [resumeBannerText, setResumeBannerText] = useState<string | null>(null)
+  const [prefsOpen, setPrefsOpen] = useState(false)
   const hasHydratedSelectionRef = useRef(false)
 
   useEffect(() => {
@@ -237,7 +240,22 @@ export function PlanView({ initialPlan }: PlanViewProps) {
                 className="hidden sm:block text-foreground transition-opacity group-hover:opacity-70"
               />
             </Link>
-            <ThemeToggle className="ml-auto" />
+            <div className="ml-auto flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => setPrefsOpen(true)}
+                aria-label="Learning preferences"
+                className={cn(
+                  'relative h-9 w-9 rounded-full shrink-0',
+                  'flex items-center justify-center',
+                  'text-muted-foreground hover:text-foreground',
+                  'hover:bg-muted/50 transition-colors duration-150'
+                )}
+              >
+                <Settings className="h-[18px] w-[18px]" strokeWidth={2} />
+              </button>
+              <ThemeToggle />
+            </div>
           </div>
         </header>
 
@@ -274,13 +292,28 @@ export function PlanView({ initialPlan }: PlanViewProps) {
                     className="hidden sm:block text-foreground transition-opacity group-hover:opacity-70"
                   />
                 </Link>
-                <ThemeToggle className="ml-auto" />
+                <div className="ml-auto flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setPrefsOpen(true)}
+                    aria-label="Learning preferences"
+                    className={cn(
+                      'relative h-9 w-9 rounded-full shrink-0',
+                      'flex items-center justify-center',
+                      'text-muted-foreground hover:text-foreground',
+                      'hover:bg-muted/50 transition-colors duration-150'
+                    )}
+                  >
+                    <Settings className="h-[18px] w-[18px]" strokeWidth={2} />
+                  </button>
+                  <ThemeToggle />
+                </div>
               </div>
             </header>
 
             {/* ── Scrollable content ───────────────────────────────────── */}
             <div ref={contentRef} className="flex-1 min-h-0 overflow-y-auto scrollbar-hide">
-              {/* Mobile: roadmap list + bottom sheet */}
+              {/* Mobile: roadmap list (technique UI is full-screen sibling below) */}
               <div className="md:hidden">
                 <div className="px-4 py-4">
                   <PlanHeader plan={plan} masteredCount={masteredCount} />
@@ -288,7 +321,6 @@ export function PlanView({ initialPlan }: PlanViewProps) {
                 <div className="px-4">
                   <RoadmapPath techniques={techniques} />
                 </div>
-                <TechniqueSheet />
               </div>
 
               {/* Desktop: article view */}
@@ -308,6 +340,10 @@ export function PlanView({ initialPlan }: PlanViewProps) {
                 )}
               </div>
             </div>
+
+            <div className="md:hidden">
+              <TechniqueSheet />
+            </div>
           </div>
 
           {/* ── RIGHT: technique navigator panel (desktop only) ────────── */}
@@ -322,6 +358,8 @@ export function PlanView({ initialPlan }: PlanViewProps) {
           />
         </div>
       </SidebarInset>
+
+      <LearningPreferencesSheet open={prefsOpen} onOpenChange={setPrefsOpen} />
     </SidebarProvider>
   )
 }

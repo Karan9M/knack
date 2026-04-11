@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Settings } from 'lucide-react'
 import { HobbyInputBar } from '@/components/onboarding/HobbyInputBar'
 import { LevelSelector } from '@/components/onboarding/LevelSelector'
 import { GenerationScreen } from '@/components/onboarding/GenerationScreen'
 import { PreferenceQuiz } from '@/components/onboarding/PreferenceQuiz'
+import { LearningPreferencesSheet } from '@/components/settings/LearningPreferencesSheet'
 import { BackgroundBeamsWithCollision } from '@/components/ui/background-beams-with-collision'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { OnboardingSidebar } from '@/components/layout/OnboardingSidebar'
@@ -16,6 +17,7 @@ import { usePlanStore } from '@/store/planStore'
 import { useUIStore } from '@/store/uiStore'
 import { getSessionId } from '@/lib/session'
 import { readResumeState } from '@/lib/resumeState'
+import { getUserContentPolicyViolation } from '@/lib/contentPolicy'
 import { GENERATE_PLAN_ENDPOINT } from '@/constants'
 import type { SkillLevel, Plan, GeneratePlanResponse, StreakData, UserPreferences } from '@/types'
 import { cn } from '@/lib/utils'
@@ -100,6 +102,7 @@ export default function OnboardingPage() {
   const [pastPlans, setPastPlans] = useState<PastPlan[]>([])
   const [resumeChecked, setResumeChecked] = useState(false)
   const [isResuming, setIsResuming] = useState(false)
+  const [prefsOpen, setPrefsOpen] = useState(false)
 
   // Quiz sits between hobby and level — only shown once, then preferences are persisted.
   const handleQuizComplete = (prefs: UserPreferences) => {
@@ -164,17 +167,35 @@ export default function OnboardingPage() {
   const handleHobbySubmit = () => {
     const trimmed = inputValue.trim()
     if (trimmed.length < 2) return
+    const violation = getUserContentPolicyViolation(trimmed)
+    if (violation) {
+      setError(violation)
+      return
+    }
+    setError(null)
     setHobby(trimmed)
     // First-time user: show personalisation quiz before level selection
     setStep(preferences ? 'level' : 'quiz')
   }
 
   const handleSuggestionClick = (suggestion: string) => {
+    const violation = getUserContentPolicyViolation(suggestion)
+    if (violation) {
+      setError(violation)
+      return
+    }
+    setError(null)
     setHobby(suggestion)
     setStep(preferences ? 'level' : 'quiz')
   }
 
   const handleLevelSubmit = async (currentLevel: SkillLevel, targetLevel: SkillLevel) => {
+    const hobbyViolation = getUserContentPolicyViolation(hobby)
+    if (hobbyViolation) {
+      setError(hobbyViolation)
+      setStep('hobby')
+      return
+    }
     setStep('generating')
     setError(null)
     try {
@@ -257,8 +278,24 @@ export default function OnboardingPage() {
             >
               {/* Mobile-only sidebar trigger */}
               <SidebarTrigger className="md:hidden shrink-0 text-muted-foreground hover:text-foreground" />
-              {/* Theme toggle — ml-auto always pushes it to the far right */}
-              <ThemeToggle className="ml-auto shrink-0" />
+              <div className="ml-auto flex items-center gap-0.5 shrink-0">
+                {preferences && step !== 'quiz' && (
+                  <button
+                    type="button"
+                    onClick={() => setPrefsOpen(true)}
+                    aria-label="Learning preferences"
+                    className={cn(
+                      'relative h-9 w-9 rounded-full shrink-0',
+                      'flex items-center justify-center',
+                      'text-muted-foreground hover:text-foreground',
+                      'hover:bg-muted/50 transition-colors duration-150'
+                    )}
+                  >
+                    <Settings className="h-[18px] w-[18px]" strokeWidth={2} />
+                  </button>
+                )}
+                <ThemeToggle />
+              </div>
             </header>
 
             {/* ── Scrollable 3-column grid ─────────────────────────────────────── */}
@@ -319,7 +356,7 @@ export default function OnboardingPage() {
                             'relative z-10 flex flex-col border-b border-black/10 dark:border-white/10 px-6 sm:px-8',
                             'justify-start gap-0 pb-10 pt-6 sm:pt-8',
                             'min-h-[min(46dvh,26rem)] sm:min-h-[min(44dvh,25rem)]',
-                            'md:h-[300px] md:min-h-[300px] md:max-h-[300px] md:justify-end md:pb-8 md:pt-14'
+                            'md:h-[300px] md:min-h-[300px] md:max-h-[300px] md:justify-end md:pb-8 md:pt-14 pt-24 sm:pt-0'
                           )}
                         >
                           <p className="mb-3 text-xs font-semibold tracking-widest uppercase text-primary sm:mb-4 md:mb-5">
@@ -340,16 +377,27 @@ export default function OnboardingPage() {
                         {/* Input section — md matches shelf line */}
                         <div
                           className={cn(
-                            'relative z-10 flex items-center border-b border-black/10 dark:border-white/10 px-6 py-6 sm:px-8 sm:py-7',
+                            'relative z-10 flex flex-col gap-3 border-b border-black/10 dark:border-white/10 px-6 py-6 sm:px-8 sm:py-7',
                             'min-h-[7.5rem] md:min-h-[110px] md:px-8 md:py-5'
                           )}
                         >
                           <HobbyInputBar
                             value={inputValue}
-                            onChange={setInputValue}
+                            onChange={(v) => {
+                              setInputValue(v)
+                              if (error) setError(null)
+                            }}
                             onSubmit={handleHobbySubmit}
                             autoFocus
                           />
+                          {error && (
+                            <p
+                              role="alert"
+                              className="text-sm text-destructive leading-snug text-left"
+                            >
+                              {error}
+                            </p>
+                          )}
                         </div>
 
                         {/* Suggestions — free-height section below second shelf */}
@@ -394,7 +442,10 @@ export default function OnboardingPage() {
                             <LevelSelector
                               hobby={hobby}
                               onSubmit={handleLevelSubmit}
-                              onBack={() => setStep('hobby')}
+                              onBack={() => {
+                                setError(null)
+                                setStep('hobby')
+                              }}
                             />
                           )}
                           {step === 'generating' && <GenerationScreen hobby={hobby} />}
@@ -430,6 +481,8 @@ export default function OnboardingPage() {
           </main>
         </BackgroundBeamsWithCollision>
       </SidebarInset>
+
+      <LearningPreferencesSheet open={prefsOpen} onOpenChange={setPrefsOpen} />
     </SidebarProvider>
   )
 }

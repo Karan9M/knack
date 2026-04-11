@@ -1,18 +1,18 @@
 'use client'
 
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ExternalLink,
   Clock,
+  ArrowLeft,
   ArrowRight,
   Zap,
   Timer,
   CheckCircle2,
   NotebookPen,
 } from 'lucide-react'
-import { useShallow } from 'zustand/react/shallow'
 import { cn } from '@/lib/utils'
 import { KeyConceptsList } from '@/components/technique/KeyConceptsList'
 import { MarkdownContent } from '@/components/technique/MarkdownContent'
@@ -73,6 +73,8 @@ interface TechniqueContentProps {
   plan: Plan
   onClose?: () => void
   floatingOffsetClass?: string
+  /** Hide bottom prev/next strip (e.g. mobile full-screen sheet already has header nav). */
+  hideFooterTechniqueNav?: boolean
 }
 
 export const TechniqueContent = memo(function TechniqueContent({
@@ -80,17 +82,32 @@ export const TechniqueContent = memo(function TechniqueContent({
   plan,
   onClose,
   floatingOffsetClass,
+  hideFooterTechniqueNav,
 }: TechniqueContentProps) {
   const { markMastered, skipTechnique } = useTechniqueActions()
 
-  const nextTechnique = usePlanStore(
-    useShallow((s) => {
-      const techs = s.activePlan?.techniques ?? plan.techniques
-      const idx = techs.findIndex((t) => t.id === technique.id)
-      const next = idx >= 0 ? techs[idx + 1] : undefined
-      return next ? { id: next.id, name: next.name } : null
-    })
-  )
+  const prevNeighborId = usePlanStore((s) => {
+    const techs = s.activePlan?.techniques ?? plan.techniques
+    const idx = techs.findIndex((t) => t.id === technique.id)
+    return idx > 0 ? techs[idx - 1].id : null
+  })
+  const nextNeighborId = usePlanStore((s) => {
+    const techs = s.activePlan?.techniques ?? plan.techniques
+    const idx = techs.findIndex((t) => t.id === technique.id)
+    return idx >= 0 && idx < techs.length - 1 ? techs[idx + 1].id : null
+  })
+
+  const prevTechnique = useMemo(() => {
+    if (!prevNeighborId) return null
+    const t = plan.techniques.find((x) => x.id === prevNeighborId)
+    return t ? { id: t.id, name: t.name } : null
+  }, [prevNeighborId, plan.techniques])
+
+  const nextTechnique = useMemo(() => {
+    if (!nextNeighborId) return null
+    const t = plan.techniques.find((x) => x.id === nextNeighborId)
+    return t ? { id: t.id, name: t.name } : null
+  }, [nextNeighborId, plan.techniques])
 
   const setSelectedTechniqueId = useUIStore((s) => s.setSelectedTechniqueId)
 
@@ -328,7 +345,7 @@ export const TechniqueContent = memo(function TechniqueContent({
         </div>
       )}
 
-      {/* ── Footer: action + navigation ── */}
+      {/* ── Footer: action + desktop prev/next strip ── */}
       <div className="mt-10 pt-8 border-t border-border flex flex-col gap-3">
         {!isMastered ? (
           <>
@@ -363,42 +380,53 @@ export const TechniqueContent = memo(function TechniqueContent({
               </button>
             )}
           </>
-        ) : nextTechnique ? (
-          <button
-            onClick={() => {
-              setSelectedTechniqueId(nextTechnique.id)
-            }}
-            className={cn(
-              'w-full h-12 rounded-2xl flex items-center justify-center gap-2',
-              'border border-border bg-card hover:bg-secondary/50 font-medium text-sm',
-              'transition-all duration-150'
-            )}
-          >
-            Next: {nextTechnique.name}
-            <ArrowRight className="h-4 w-4" />
-          </button>
-        ) : (
+        ) : !nextTechnique ? (
           <div className="text-center py-3">
-            <p className="text-sm font-medium text-emerald-700">
+            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
               🎉 You&apos;ve mastered all techniques in this roadmap!
             </p>
           </div>
-        )}
+        ) : null}
 
-        {/* Next technique navigation (when not mastered yet) */}
-        {!isMastered && nextTechnique && (
-          <button
-            onClick={() => {
-              setSelectedTechniqueId(nextTechnique.id)
-            }}
-            className="flex items-center justify-between w-full px-4 py-3 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors group"
-          >
-            <span className="text-xs uppercase tracking-widest font-medium">Next</span>
-            <span className="font-medium text-foreground/80 group-hover:text-foreground transition-colors">
-              {nextTechnique.name}
-            </span>
-            <ArrowRight className="h-4 w-4 shrink-0" />
-          </button>
+        {!hideFooterTechniqueNav && (prevTechnique || nextTechnique) && (
+          <div className="hidden md:flex min-h-[3.25rem] w-full items-stretch border border-border rounded-2xl overflow-hidden bg-card/30">
+            {prevTechnique && (
+              <button
+                type="button"
+                onClick={() => setSelectedTechniqueId(prevTechnique.id)}
+                className={cn(
+                  'flex flex-1 min-w-0 items-center gap-3 px-4 py-3.5',
+                  'hover:bg-secondary/50 transition-colors duration-150 group',
+                  nextTechnique && 'border-r border-border'
+                )}
+                aria-label={`Previous: ${prevTechnique.name}`}
+              >
+                <ArrowLeft
+                  className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground transition-colors"
+                  aria-hidden
+                />
+                <span className="flex-1 min-w-0 text-center text-sm font-medium text-primary truncate">
+                  {prevTechnique.name}
+                </span>
+              </button>
+            )}
+            {nextTechnique && (
+              <button
+                type="button"
+                onClick={() => setSelectedTechniqueId(nextTechnique.id)}
+                className="flex flex-1 min-w-0 items-center gap-3 px-4 py-3.5 hover:bg-secondary/50 transition-colors duration-150 group"
+                aria-label={`Next: ${nextTechnique.name}`}
+              >
+                <span className="flex-1 min-w-0 text-center text-sm font-medium text-primary truncate">
+                  {nextTechnique.name}
+                </span>
+                <ArrowRight
+                  className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground transition-colors"
+                  aria-hidden
+                />
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -516,6 +544,9 @@ export const TechniqueContent = memo(function TechniqueContent({
                 'focus:outline-none focus:ring-2 focus:ring-primary/30'
               )}
             />
+            {notes.saveError && (
+              <p className="mt-2 text-xs text-destructive leading-snug">{notes.saveError}</p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { isValidPlanLevelPair } from '@/lib/skillLevels'
 
 export const SkillLevelSchema = z.enum(['beginner', 'intermediate', 'advanced'])
 
@@ -8,13 +9,17 @@ export const UserPreferencesSchema = z.object({
   sessionLength: z.enum(['quick', 'regular', 'deep']),
 })
 
-export const GeneratePlanSchema = z.object({
-  hobby: z.string().min(1, 'Hobby is required').max(100, 'Hobby name is too long'),
-  currentLevel: SkillLevelSchema,
-  targetLevel: SkillLevelSchema,
-  sessionId: z.string().uuid('Invalid session ID'),
-  preferences: UserPreferencesSchema.optional(),
-})
+export const GeneratePlanSchema = z
+  .object({
+    hobby: z.string().min(1, 'Hobby is required').max(100, 'Hobby name is too long'),
+    currentLevel: SkillLevelSchema,
+    targetLevel: SkillLevelSchema,
+    sessionId: z.string().uuid('Invalid session ID'),
+    preferences: UserPreferencesSchema.optional(),
+  })
+  .refine((d) => isValidPlanLevelPair(d.currentLevel, d.targetLevel), {
+    message: 'Target level must be above current level, or both advanced for continued learning.',
+  })
 
 export const FetchVideosSchema = z.object({
   query: z.string().min(1, 'Query is required').max(200, 'Query is too long'),

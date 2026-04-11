@@ -32,8 +32,13 @@ export function GeneratedImage({
   contentType,
   initialImage,
 }: GeneratedImageProps) {
-  const [meta, setMeta] = useState<ImageMeta | null>(initialImage ? { url: initialImage } : null)
-  const [fetching, setFetching] = useState(initialImage === undefined)
+  const storedImageUrl = usePlanStore(
+    (s) => s.activePlan?.techniques.find((t) => t.id === techniqueId)?.generatedImage
+  )
+  const resolvedUrl = initialImage ?? storedImageUrl
+
+  const [meta, setMeta] = useState<ImageMeta | null>(resolvedUrl ? { url: resolvedUrl } : null)
+  const [fetching, setFetching] = useState(!resolvedUrl)
   const [imgLoaded, setImgLoaded] = useState(false)
   const [failed, setFailed] = useState(false)
 
@@ -42,7 +47,15 @@ export function GeneratedImage({
   const imageStyle = useUIStore((s) => s.preferences?.imageStyle)
 
   useEffect(() => {
-    if (initialImage || fetchedRef.current) return
+    if (!resolvedUrl) return
+    setMeta({ url: resolvedUrl })
+    setFetching(false)
+    setFailed(false)
+    setImgLoaded(false)
+  }, [resolvedUrl])
+
+  useEffect(() => {
+    if (resolvedUrl || fetchedRef.current) return
     fetchedRef.current = true
 
     // Stock photos read as "random pictures", not diagrams — skip Pexels for schematic prefs.
@@ -64,7 +77,7 @@ export function GeneratedImage({
     })
       .then((r) => r.json())
       .then(
-        (data: {
+        async (data: {
           url?: string
           photographer?: string
           photographerUrl?: string
@@ -77,11 +90,15 @@ export function GeneratedImage({
               photographerUrl: data.photographerUrl,
             })
             updateTechniqueGeneratedImage(techniqueId, data.url)
-            fetch(`/api/technique/${techniqueId}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'generatedImage', url: data.url }),
-            }).catch(console.error)
+            try {
+              await fetch(`/api/technique/${techniqueId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'generatedImage', url: data.url }),
+              })
+            } catch {
+              /* non-blocking */
+            }
           } else {
             setFailed(true)
           }
@@ -90,7 +107,7 @@ export function GeneratedImage({
       .catch(() => setFailed(true))
       .finally(() => setFetching(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [techniqueId, imageStyle])
+  }, [techniqueId, imageStyle, resolvedUrl])
 
   if (failed) return null
 

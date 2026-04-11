@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Bot, Send, Sparkles, User, X } from 'lucide-react'
+import { getUserContentPolicyViolation } from '@/lib/contentPolicy'
 import { cn } from '@/lib/utils'
 import { MovingBorder } from '@/components/ui/moving-border'
 import type { Technique } from '@/types'
@@ -39,6 +40,7 @@ function BlurStreamText({ text }: { text: string }) {
 export function TechniqueChat({ technique, hobby }: TechniqueChatProps) {
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
+  const [barError, setBarError] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [fetching, setFetching] = useState(false)
   const [streaming, setStreaming] = useState(false)
@@ -53,6 +55,7 @@ export function TechniqueChat({ technique, hobby }: TechniqueChatProps) {
     streamRunIdRef.current += 1
     setOpen(false)
     setInput('')
+    setBarError(null)
     setMessages([])
     setFetching(false)
     setStreaming(false)
@@ -108,6 +111,13 @@ export function TechniqueChat({ technique, hobby }: TechniqueChatProps) {
     const question = input.trim()
     if (!question || fetching || streaming) return
 
+    const localViolation = getUserContentPolicyViolation(question)
+    if (localViolation) {
+      setBarError(localViolation)
+      return
+    }
+
+    setBarError(null)
     const nextUser: ChatMessage = { role: 'user', content: question }
     const nextHistory = [...messages, nextUser].slice(-12)
     setMessages(nextHistory)
@@ -139,16 +149,21 @@ export function TechniqueChat({ technique, hobby }: TechniqueChatProps) {
       setStreaming(true)
       await streamAssistantReply(data.answer as string)
       setStreaming(false)
-    } catch {
+    } catch (err) {
       setFetching(false)
       setStreaming(false)
+      const reply =
+        err instanceof Error ? err.message : 'I could not answer right now. Please try again.'
       setMessages((prev) => {
-        const assistantMessage: ChatMessage = {
-          role: 'assistant',
-          content: 'I could not answer right now. Please try again.',
+        const next = [...prev]
+        const last = next[next.length - 1]
+        if (last?.role === 'user' && last.content === question) {
+          next.pop()
         }
-        return [...prev, assistantMessage].slice(-20)
+        return next.slice(-20)
       })
+      setBarError(reply)
+      setInput(question)
     }
   }
 
@@ -157,7 +172,7 @@ export function TechniqueChat({ technique, hobby }: TechniqueChatProps) {
       <div
         ref={barRef}
         className={cn(
-          'fixed z-[67] md:right-auto md:left-1/2 md:w-[min(86vw,760px)] md:-translate-x-1/2',
+          'fixed z-[67] flex flex-col gap-1.5 md:right-auto md:left-1/2 md:w-[min(86vw,760px)] md:-translate-x-1/2',
           'left-[max(1rem,env(safe-area-inset-left,0px))]',
           'right-[max(5.75rem,calc(env(safe-area-inset-right,0px)+5.25rem))]',
           'bottom-[max(1.5rem,env(safe-area-inset-bottom,0px)+0.75rem)]'
@@ -184,7 +199,10 @@ export function TechniqueChat({ technique, hobby }: TechniqueChatProps) {
               <input
                 value={input}
                 onFocus={() => setOpen(true)}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  setInput(e.target.value)
+                  if (barError) setBarError(null)
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
@@ -214,6 +232,14 @@ export function TechniqueChat({ technique, hobby }: TechniqueChatProps) {
             </button>
           </div>
         </div>
+        {barError && (
+          <p
+            role="alert"
+            className="text-xs sm:text-sm text-destructive leading-snug px-0.5 text-left text-pretty"
+          >
+            {barError}
+          </p>
+        )}
       </div>
 
       <AnimatePresence>

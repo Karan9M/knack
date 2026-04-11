@@ -18,7 +18,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar'
 import { StreakBadge } from '@/components/plan/StreakBadge'
-import { SKILL_LEVEL_LABELS } from '@/constants'
+import { formatPlanLevelJourney } from '@/lib/skillLevels'
 import type { Plan, Technique, StreakData } from '@/types'
 
 interface CourseSidebarProps {
@@ -47,10 +47,8 @@ export const CourseSidebar = memo(
           {/* Expanded: level + title + trigger (right-aligned) */}
           <div className="group-data-[collapsible=icon]:hidden flex items-center h-12 px-3 gap-2 min-w-0">
             <div className="flex flex-col justify-center flex-1 min-w-0 overflow-hidden">
-              <p className="flex items-center gap-1 text-[9px] font-semibold tracking-widest uppercase text-muted-foreground/70 leading-none mb-0.5">
-                <span>{SKILL_LEVEL_LABELS[plan.currentLevel]}</span>
-                <span className="text-primary">→</span>
-                <span>{SKILL_LEVEL_LABELS[plan.targetLevel]}</span>
+              <p className="text-[9px] font-semibold tracking-widest uppercase text-muted-foreground/70 leading-none mb-0.5 truncate">
+                {formatPlanLevelJourney(plan.currentLevel, plan.targetLevel)}
               </p>
               <h2 className="text-sm font-bold text-sidebar-foreground capitalize leading-tight truncate">
                 {plan.hobby}

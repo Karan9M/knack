@@ -1,4 +1,5 @@
 import { type NextRequest } from 'next/server'
+import { getUserContentPolicyViolation } from '@/lib/contentPolicy'
 import { GeneratePlanSchema } from '@/lib/validators'
 import { generatePlanTechniques } from '@/lib/ai'
 import { createPlan } from '@/lib/db'
@@ -17,6 +18,11 @@ export async function POST(req: NextRequest) {
     }
 
     const { hobby, currentLevel, targetLevel, sessionId, preferences } = parsed.data
+
+    const hobbyViolation = getUserContentPolicyViolation(hobby)
+    if (hobbyViolation) {
+      return Response.json({ error: hobbyViolation }, { status: 400 })
+    }
 
     const rawTechniques = await generatePlanTechniques(
       hobby,

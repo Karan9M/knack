@@ -1,5 +1,6 @@
 import { type NextRequest } from 'next/server'
 import { GROQ_MODEL } from '@/constants'
+import { getFirstUserContentPolicyViolation } from '@/lib/contentPolicy'
 import { TechniqueChatSchema } from '@/lib/validators'
 import { withGroqApiKeyFallback } from '@/lib/groqWithKeyFallback'
 
@@ -52,6 +53,18 @@ export async function POST(req: NextRequest) {
       notes,
       history,
     } = parsed.data
+
+    const userHistoryTexts = history?.filter((m) => m.role === 'user').map((m) => m.content) ?? []
+    const chatViolation = getFirstUserContentPolicyViolation([
+      question,
+      hobby,
+      techniqueName,
+      notes,
+      ...userHistoryTexts,
+    ])
+    if (chatViolation) {
+      return Response.json({ error: chatViolation }, { status: 400 })
+    }
 
     const systemContent = buildTechniqueChatSystemPrompt({
       hobby,
