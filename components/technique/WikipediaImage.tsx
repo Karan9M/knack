@@ -13,8 +13,6 @@ interface WikipediaImageProps {
   initialImage?: WikipediaImageType
 }
 
-// Words that are too generic to be useful as a relevance signal — they appear in
-// unrelated Wikipedia articles (military, politics, geography, etc.)
 const AMBIGUOUS_WORDS = new Set([
   'defense',
   'defence',
@@ -50,13 +48,6 @@ const AMBIGUOUS_WORDS = new Set([
   'cross',
 ])
 
-/**
- * Returns false if the Wikipedia result is clearly unrelated to the hobby/technique.
- *
- * Strategy: the Wikipedia page title MUST contain at least one hobby word,
- * OR at least two technique words that are not in the ambiguous list.
- * This prevents "Front Foot Defense" from matching a war article.
- */
 function isRelevantImage(image: WikipediaImageType, techniqueName: string, hobby: string): boolean {
   const titleLower = image.pageTitle.toLowerCase()
   const captionLower = image.caption.toLowerCase()
@@ -71,11 +62,9 @@ function isRelevantImage(image: WikipediaImageType, techniqueName: string, hobby
     .split(/\s+/)
     .filter((w) => w.length > 4 && !AMBIGUOUS_WORDS.has(w))
 
-  // Primary gate: hobby must appear somewhere in the page title or caption
   const hobbyMatches = hobbyWords.some((w) => combined.includes(w))
   if (hobbyMatches) return true
 
-  // Fallback: at least 2 non-ambiguous technique words must appear
   const techMatches = techWords.filter((w) => combined.includes(w))
   return techMatches.length >= 2
 }
@@ -87,17 +76,13 @@ export function WikipediaImage({
   initialImage,
 }: WikipediaImageProps) {
   const [image, setImage] = useState<WikipediaImageType | null>(initialImage ?? null)
-  // Only show skeleton on first load attempt; if initialImage is explicitly undefined we try to fetch
   const [isLoading, setIsLoading] = useState(initialImage === undefined)
-  // Narrow selector: only gets the action function (stable reference — never causes re-renders)
   const updateTechniqueWikipedia = usePlanStore((s) => s.updateTechniqueWikipedia)
 
   useEffect(() => {
     if (initialImage || image) return
 
     setIsLoading(true)
-    // Include hobby in the query so Wikipedia search is scoped to the right domain.
-    // e.g. "Front Foot Defense cricket" not just "Front Foot Defense"
     const query = `${techniqueName} ${hobby}`
 
     fetch(`/api/wikipedia?q=${encodeURIComponent(query)}`)
@@ -106,7 +91,6 @@ export function WikipediaImage({
         if (data.image && isRelevantImage(data.image, techniqueName, hobby)) {
           setImage(data.image)
           updateTechniqueWikipedia(techniqueId, data.image)
-          // Persist to Supabase
           fetch(`/api/technique/${techniqueId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -119,8 +103,6 @@ export function WikipediaImage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [techniqueId, techniqueName, hobby])
 
-  // Reserve a fixed height (h-52 = 208px) in both skeleton and loaded states so
-  // the article text below never jumps when the image arrives or decodes.
   const RESERVED_H = 'h-52'
 
   if (isLoading) {

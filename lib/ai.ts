@@ -1,5 +1,5 @@
 import Groq from 'groq-sdk'
-import type { SkillLevel } from '@/types'
+import type { SkillLevel, UserPreferences } from '@/types'
 import { GeminiPlanResponseSchema, type GeminiTechnique } from '@/lib/validators'
 import { GROQ_MODEL } from '@/constants'
 
@@ -9,7 +9,45 @@ function getGroqClient(): Groq {
   return new Groq({ apiKey })
 }
 
-export const buildPlanPrompt = (hobby: string, current: SkillLevel, target: SkillLevel): string => `
+function buildPreferenceInstructions(prefs: UserPreferences): string {
+  const { imageStyle, learningMode, sessionLength } = prefs
+
+  const hours =
+    sessionLength === 'quick'
+      ? '- estimatedHours: Use roughly 0.25–1.5 hours per technique (short daily practice). Do NOT use large totals like 8–15h per technique; cap each entry at 2 unless absolutely unavoidable, and prefer fractions like 0.5 or 0.75.'
+      : sessionLength === 'deep'
+        ? '- estimatedHours: These learners take long sessions — 4–12 hours per hard technique is acceptable when realistic.'
+        : '- estimatedHours: Typical hobby competency range, about 1–5 hours per technique unless the skill is unusually deep.'
+
+  const mode =
+    learningMode === 'videos'
+      ? '- Learning mode WATCH-FIRST: Strongly prefer contentType "video" or "both" for most techniques. Every videoQuery must be a tight YouTube search string for this exact technique + hobby. Keep "article"-only techniques rare (theory-heavy topics only).'
+      : learningMode === 'reading'
+        ? '- Learning mode READ-FIRST: Prefer contentType "article" or "both" for most techniques. Written explanations matter more than binge-watching. videoQuery is still required but secondary.'
+        : learningMode === 'hands-on'
+          ? '- Learning mode HANDS-ON: Prefer "both" or "video" with extremely concrete practiceTask blocks; passive watching alone is insufficient.'
+          : '- Learning mode MIXED: Balance video, article, and both across techniques as appropriate.'
+
+  const visual =
+    imageStyle === 'diagrams' || imageStyle === 'flowcharts'
+      ? `- Visual preference ${imageStyle.toUpperCase()}: Favor contentType "article" or "both" so written guides can carry schematic breakdowns. keyConcepts should use spatial / positional language (stance, angles, sequence). Avoid a roadmap where every technique is only "watch slow-motion" with no form structure.`
+      : `- Visual preference "${imageStyle}": apply the usual motor-skill vs theory guidance; keep hooks vivid and concrete.`
+
+  return `
+
+LEARNER PERSONALISATION (must respect — this came from onboarding):
+${hours}
+${mode}
+${visual}
+`
+}
+
+export const buildPlanPrompt = (
+  hobby: string,
+  current: SkillLevel,
+  target: SkillLevel,
+  preferences?: UserPreferences | null
+): string => `
 You are a master coach for ${hobby}.
 
 Generate a focused learning roadmap for someone at ${current} level wanting to reach ${target} level.
@@ -53,16 +91,18 @@ Return ONLY valid JSON. No markdown fences, no explanation, no preamble.
     }
   ]
 }
+${preferences ? buildPreferenceInstructions(preferences) : ''}
 `
 
 export async function generatePlanTechniques(
   hobby: string,
   currentLevel: SkillLevel,
-  targetLevel: SkillLevel
+  targetLevel: SkillLevel,
+  preferences?: UserPreferences | null
 ): Promise<GeminiTechnique[]> {
   const client = getGroqClient()
 
-  const prompt = buildPlanPrompt(hobby, currentLevel, targetLevel)
+  const prompt = buildPlanPrompt(hobby, currentLevel, targetLevel, preferences)
 
   const response = await client.chat.completions.create({
     model: GROQ_MODEL,
@@ -72,7 +112,6 @@ export async function generatePlanTechniques(
 
   const text = (response.choices[0]?.message?.content ?? '').trim()
 
-  // Strip any accidental markdown fences
   const cleaned = text
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/\s*```$/i, '')

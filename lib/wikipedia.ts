@@ -24,7 +24,6 @@ interface WikipediaSearchResult {
 
 export async function fetchWikipediaImage(query: string): Promise<WikipediaImage | null> {
   try {
-    // Step 1: Search Wikipedia for the most relevant page
     const searchUrl =
       `https://en.wikipedia.org/w/api.php?` +
       new URLSearchParams({
@@ -43,7 +42,6 @@ export async function fetchWikipediaImage(query: string): Promise<WikipediaImage
     const firstResult = searchData.query?.search?.[0]
     if (!firstResult) return null
 
-    // Step 2: Get the page summary (includes thumbnail)
     const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(
       firstResult.title
     )}`

@@ -127,8 +127,6 @@ export const TechniqueNavPanel = memo(
   }
 )
 
-// ── NavItem ───────────────────────────────────────────────────────────────────
-
 interface NavItemProps {
   technique: Technique
   index: number

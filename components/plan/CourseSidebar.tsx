@@ -147,8 +147,6 @@ export const CourseSidebar = memo(
   }
 )
 
-// ── TechniqueItem ────────────────────────────────────────────────────────────
-
 interface TechniqueItemProps {
   id: string
   name: string

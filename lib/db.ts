@@ -11,10 +11,6 @@ import type {
 } from '@/types'
 import { getTodayDateString, isYesterday, isToday } from '@/lib/utils'
 
-// ---------------------------------------------------------------------------
-// Sessions
-// ---------------------------------------------------------------------------
-
 export async function getOrCreateSession(sessionId: string): Promise<string> {
   const db = getDb()
 
@@ -31,10 +27,6 @@ export async function getOrCreateSession(sessionId: string): Promise<string> {
   if (error) throw new Error(`Failed to create session: ${error.message}`)
   return created.id as string
 }
-
-// ---------------------------------------------------------------------------
-// Plans
-// ---------------------------------------------------------------------------
 
 interface CreatePlanInput {
   sessionId: string
@@ -151,10 +143,6 @@ export async function touchPlan(planId: string): Promise<void> {
   await db.from('plans').update({ last_active_at: new Date().toISOString() }).eq('id', planId)
 }
 
-// ---------------------------------------------------------------------------
-// Techniques
-// ---------------------------------------------------------------------------
-
 export async function updateTechniqueStatus(
   techniqueId: string,
   status: TechniqueStatus
@@ -224,10 +212,6 @@ export async function saveTechniqueNotes(techniqueId: string, notes: string): Pr
   if (error) throw new Error(`Failed to save notes: ${error.message}`)
 }
 
-// ---------------------------------------------------------------------------
-// Streaks
-// ---------------------------------------------------------------------------
-
 export async function getStreak(sessionId: string): Promise<StreakData> {
   const db = getDb()
   const { data } = await db.from('streaks').select('*').eq('session_id', sessionId).maybeSingle()
@@ -270,10 +254,6 @@ export async function updateStreak(sessionId: string): Promise<StreakData> {
 
   return { count: newCount, lastActiveDate: today }
 }
-
-// ---------------------------------------------------------------------------
-// Row → Domain type converters
-// ---------------------------------------------------------------------------
 
 interface PlanRow {
   id: string

@@ -14,7 +14,6 @@ interface TechniqueCardProps {
 }
 
 export const TechniqueCard = memo(function TechniqueCard({ technique, index }: TechniqueCardProps) {
-  // Narrow selector — only re-renders when the action reference changes (never in Zustand)
   const openTechnique = useUIStore((s) => s.openTechnique)
   const prefersReduced = useReducedMotion()
 

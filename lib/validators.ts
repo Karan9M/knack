@@ -2,11 +2,18 @@ import { z } from 'zod'
 
 export const SkillLevelSchema = z.enum(['beginner', 'intermediate', 'advanced'])
 
+export const UserPreferencesSchema = z.object({
+  imageStyle: z.enum(['illustrations', 'cartoons', 'ghibli', 'diagrams', 'flowcharts']),
+  learningMode: z.enum(['videos', 'reading', 'hands-on', 'mixed']),
+  sessionLength: z.enum(['quick', 'regular', 'deep']),
+})
+
 export const GeneratePlanSchema = z.object({
   hobby: z.string().min(1, 'Hobby is required').max(100, 'Hobby name is too long'),
   currentLevel: SkillLevelSchema,
   targetLevel: SkillLevelSchema,
   sessionId: z.string().uuid('Invalid session ID'),
+  preferences: UserPreferencesSchema.optional(),
 })
 
 export const FetchVideosSchema = z.object({
@@ -19,6 +26,7 @@ export const GenerateContentSchema = z.object({
   hobby: z.string(),
   whyItMatters: z.string(),
   keyConcepts: z.array(z.string()),
+  preferences: UserPreferencesSchema.optional(),
 })
 
 export const UpdateTechniqueStatusSchema = z.object({
@@ -69,7 +77,6 @@ export const GeminiTechniqueSchema = z.object({
     videoQuery: z.string(),
     articleLinks: z.array(ArticleLinkSchema).optional().default([]).catch([]),
   }),
-  // Graceful fallback — if Groq omits the field the app still works
   practiceTask: PracticeTaskSchema.optional().catch(undefined),
 })
 

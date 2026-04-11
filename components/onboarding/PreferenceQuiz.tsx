@@ -6,8 +6,6 @@ import { cn } from '@/lib/utils'
 import { KnackIcon } from '@/components/layout/KnackIcon'
 import type { UserPreferences, ImageStyle, LearningMode, SessionLength } from '@/types'
 
-// ─── Question data ────────────────────────────────────────────────────────────
-
 const QUESTIONS = [
   {
     id: 'imageStyle' as const,
@@ -110,8 +108,6 @@ interface PreferenceQuizProps {
   onComplete: (prefs: UserPreferences) => void
 }
 
-// ─── Option card ──────────────────────────────────────────────────────────────
-
 interface OptionCardProps {
   icon: string
   label: string
@@ -159,8 +155,6 @@ function OptionCard({ icon, label, desc, selected, onClick, delay, reduced }: Op
   )
 }
 
-// ─── Analysis screen (step 4) ─────────────────────────────────────────────────
-
 function AnalysisScreen({ reduced, onDone }: { reduced: boolean; onDone: () => void }) {
   useEffect(() => {
     const t = setTimeout(onDone, 2400)
@@ -174,35 +168,20 @@ function AnalysisScreen({ reduced, onDone }: { reduced: boolean; onDone: () => v
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: 0.35 }}
-      className="flex flex-col items-center justify-center gap-8 py-16 text-center"
+      className="flex min-h-0 flex-1 w-full flex-col items-center justify-center gap-8 px-4 py-8 text-center"
     >
-      {/* Animated KnackIcon with orbital rings */}
-      <div className="relative flex items-center justify-center h-28 w-28">
-        {/* Slow outer ring */}
+      {/* Knack logo: orbital rings only (no orbiting dot) */}
+      <div className="relative flex h-28 w-28 shrink-0 items-center justify-center">
         <motion.div
           className="absolute inset-0 rounded-full border border-primary/20"
           animate={reduced ? {} : { rotate: 360 }}
           transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
         />
-        {/* Dashed inner ring */}
         <motion.div
           className="absolute inset-4 rounded-full border border-dashed border-primary/35"
           animate={reduced ? {} : { rotate: -360 }}
           transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
         />
-        {/* Orbiting dot */}
-        {!reduced && (
-          <motion.div
-            className="absolute h-2.5 w-2.5 rounded-full bg-primary shadow-md"
-            style={{ top: 0, left: '50%', marginLeft: -5, marginTop: -5 }}
-            animate={{ rotate: 360 }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-            transformTemplate={({ rotate }) =>
-              `rotate(${rotate}) translateY(-56px) rotate(-${rotate})`
-            }
-          />
-        )}
-        {/* Icon */}
         <motion.div
           animate={reduced ? {} : { scale: [1, 1.12, 1], opacity: [0.85, 1, 0.85] }}
           transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
@@ -233,8 +212,6 @@ function AnalysisScreen({ reduced, onDone }: { reduced: boolean; onDone: () => v
     </motion.div>
   )
 }
-
-// ─── Main quiz component ──────────────────────────────────────────────────────
 
 export function PreferenceQuiz({ onComplete }: PreferenceQuizProps) {
   const reduced = useReducedMotion() ?? false
@@ -270,7 +247,7 @@ export function PreferenceQuiz({ onComplete }: PreferenceQuizProps) {
   }
 
   return (
-    <div className="flex flex-col flex-1 w-full">
+    <div className="flex min-h-0 flex-1 flex-col w-full">
       {/* ── Progress bar ─────────────────────────────────────────────── */}
       <div className="relative h-[3px] w-full bg-black/6 dark:bg-white/8 shrink-0">
         <motion.div
@@ -281,7 +258,7 @@ export function PreferenceQuiz({ onComplete }: PreferenceQuizProps) {
       </div>
 
       {/* ── Step content ─────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <AnimatePresence mode="wait" custom={direction}>
           {step <= 3 && currentQuestion && (
             <motion.div
@@ -292,7 +269,7 @@ export function PreferenceQuiz({ onComplete }: PreferenceQuizProps) {
               animate="center"
               exit="exit"
               transition={{ duration: 0.28, ease: 'easeOut' }}
-              className="flex flex-col px-8 py-10 h-full"
+              className="flex h-full min-h-0 flex-col px-8 py-10"
             >
               {/* Step label */}
               <p className="text-xs font-semibold tracking-widest uppercase text-primary mb-6">

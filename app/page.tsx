@@ -182,7 +182,13 @@ export default function OnboardingPage() {
       const res = await fetch(GENERATE_PLAN_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hobby, currentLevel, targetLevel, sessionId }),
+        body: JSON.stringify({
+          hobby,
+          currentLevel,
+          targetLevel,
+          sessionId,
+          ...(preferences ? { preferences } : {}),
+        }),
       })
       if (!res.ok) {
         const data = await parseJsonResponse<{ error?: string }>(res)
@@ -242,7 +248,13 @@ export default function OnboardingPage() {
         <BackgroundBeamsWithCollision className="flex flex-col h-dvh overflow-hidden">
           <main className="relative flex flex-col h-dvh overflow-hidden w-full">
             {/* ── Sticky 48 px header ─────────────────────────────────────────── */}
-            <header className="sticky top-0 z-10 flex h-12 w-full shrink-0 items-center border-b border-black/10 dark:border-white/10 bg-background/90 backdrop-blur-sm px-3 md:px-6">
+            <header
+              className={cn(
+                'sticky top-0 z-10 flex w-full shrink-0 items-center border-b border-black/10 dark:border-white/10 bg-background/90 backdrop-blur-sm',
+                'min-h-[calc(2.75rem+env(safe-area-inset-top,0px))] pt-[env(safe-area-inset-top,0px)] pb-2.5 px-3',
+                'md:h-12 md:min-h-12 md:py-0 md:pb-0 md:px-6'
+              )}
+            >
               {/* Mobile-only sidebar trigger */}
               <SidebarTrigger className="md:hidden shrink-0 text-muted-foreground hover:text-foreground" />
               {/* Theme toggle — ml-auto always pushes it to the far right */}
@@ -251,7 +263,7 @@ export default function OnboardingPage() {
 
             {/* ── Scrollable 3-column grid ─────────────────────────────────────── */}
             <div className="flex-1 min-h-0 overflow-y-auto">
-              <div className="relative flex w-full min-h-[calc(100dvh-3rem)]">
+              <div className="relative flex w-full min-h-[calc(100dvh-3.25rem-env(safe-area-inset-top,0px))] md:min-h-[calc(100dvh-3rem)]">
                 {/* Left decorator — vertical line + two horizontal shelf lines */}
                 <div className="hidden md:flex flex-1 flex-col border-r border-black/10 dark:border-white/10">
                   <div
@@ -295,36 +307,42 @@ export default function OnboardingPage() {
                     {step === 'hobby' && (
                       <motion.div
                         key="hobby"
-                        className="flex flex-col flex-1"
+                        className="flex min-h-0 flex-1 flex-col pb-[max(1.25rem,env(safe-area-inset-bottom,0px))]"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0, y: -8 }}
                         transition={{ duration: 0.25 }}
                       >
-                        {/* Hero section — height aligns with left/right shelf line */}
+                        {/* Hero: md matches shelf (300px); mobile uses min-height + flow so copy is not crushed */}
                         <div
-                          className="relative z-10 flex flex-col justify-end border-b border-black/10 dark:border-white/10 pt-14 pb-8 px-8"
-                          style={{ height: HERO_H }}
+                          className={cn(
+                            'relative z-10 flex flex-col border-b border-black/10 dark:border-white/10 px-6 sm:px-8',
+                            'justify-start gap-0 pb-10 pt-6 sm:pt-8',
+                            'min-h-[min(46dvh,26rem)] sm:min-h-[min(44dvh,25rem)]',
+                            'md:h-[300px] md:min-h-[300px] md:max-h-[300px] md:justify-end md:pb-8 md:pt-14'
+                          )}
                         >
-                          <p className="text-xs font-semibold tracking-widest uppercase text-primary mb-5">
+                          <p className="mb-3 text-xs font-semibold tracking-widest uppercase text-primary sm:mb-4 md:mb-5">
                             AI-powered skill roadmaps
                           </p>
-                          <h1 className="text-5xl sm:text-[3.25rem] font-bold text-foreground/90 leading-[1.06] tracking-tight">
+                          <h1 className="text-[2.35rem] font-bold leading-[1.08] tracking-tight text-foreground/90 sm:text-5xl sm:leading-[1.06] md:text-[3.25rem]">
                             What do you want
                             <br />
                             to <em className="not-italic text-primary">master?</em>
                           </h1>
-                          <p className="mt-4 text-base font-light text-foreground/50 leading-snug">
+                          <p className="mt-2 text-[0.95rem] font-light leading-relaxed text-foreground/50 sm:mt-3 sm:text-base md:mt-4">
                             Focused skill roadmaps, personalised to your level.
                             <br />
                             5–8 techniques. No noise.
                           </p>
                         </div>
 
-                        {/* Input section — height aligns with second shelf line */}
+                        {/* Input section — md matches shelf line */}
                         <div
-                          className="relative z-10 flex items-center border-b border-black/10 dark:border-white/10 px-8 py-5"
-                          style={{ minHeight: INPUT_H }}
+                          className={cn(
+                            'relative z-10 flex items-center border-b border-black/10 dark:border-white/10 px-6 py-6 sm:px-8 sm:py-7',
+                            'min-h-[7.5rem] md:min-h-[110px] md:px-8 md:py-5'
+                          )}
                         >
                           <HobbyInputBar
                             value={inputValue}
@@ -335,7 +353,7 @@ export default function OnboardingPage() {
                         </div>
 
                         {/* Suggestions — free-height section below second shelf */}
-                        <div className="relative z-10 flex flex-col px-8 py-2 flex-1">
+                        <div className="relative z-10 flex flex-1 flex-col px-6 py-3 sm:px-8 sm:py-4">
                           {SUGGESTIONS.map((s, i) => (
                             <motion.button
                               key={s}

@@ -45,10 +45,22 @@ export function GeneratedImage({
     if (initialImage || fetchedRef.current) return
     fetchedRef.current = true
 
+    // Stock photos read as "random pictures", not diagrams — skip Pexels for schematic prefs.
+    if (imageStyle === 'diagrams' || imageStyle === 'flowcharts') {
+      setFetching(false)
+      return
+    }
+
     fetch('/api/generate-image', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ techniqueName, hobby, contentType, imageStyle }),
+      body: JSON.stringify({
+        techniqueId,
+        techniqueName,
+        hobby,
+        contentType,
+        imageStyle,
+      }),
     })
       .then((r) => r.json())
       .then(
@@ -78,7 +90,7 @@ export function GeneratedImage({
       .catch(() => setFailed(true))
       .finally(() => setFetching(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [techniqueId])
+  }, [techniqueId, imageStyle])
 
   if (failed) return null
 

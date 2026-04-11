@@ -23,7 +23,6 @@ import { APP_NAME } from '@/constants'
 import type { Plan, SkillLevel } from '@/types'
 import type { PlanSummary } from '@/components/plan/PlanSwitcherSidebar'
 
-// Mobile-only bottom sheet — lazy so it doesn't bloat the initial JS bundle
 const TechniqueSheet = dynamic(
   () => import('@/components/technique/TechniqueSheet').then((m) => m.TechniqueSheet),
   { ssr: false }
@@ -36,7 +35,6 @@ interface PlanViewProps {
 const SKIP_RESUME_ONCE_KEY = 'knack_skip_resume_once'
 
 export function PlanView({ initialPlan }: PlanViewProps) {
-  // ── Store selectors — narrow primitives to avoid infinite-loop snapshots ──
   const setPlan = usePlanStore((s) => s.setPlan)
   const techniques = usePlanStore((s) => s.activePlan?.techniques ?? initialPlan.techniques)
   const hobby = usePlanStore((s) => s.activePlan?.hobby ?? initialPlan.hobby)
@@ -49,19 +47,16 @@ export function PlanView({ initialPlan }: PlanViewProps) {
   const [resumeBannerText, setResumeBannerText] = useState<string | null>(null)
   const hasHydratedSelectionRef = useRef(false)
 
-  // Hydrate Zustand from SSR-fetched plan
   useEffect(() => {
     setPlan(initialPlan)
   }, [initialPlan, setPlan])
 
-  // ── Streak ────────────────────────────────────────────────────────────────
   const { streak, bumpStreak } = useStreak()
   useEffect(() => {
     bumpStreak()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ── Initial selection hydration (resume first, then fallback) ─────────────
   useEffect(() => {
     hasHydratedSelectionRef.current = false
   }, [planId])
@@ -107,7 +102,6 @@ export function PlanView({ initialPlan }: PlanViewProps) {
     })
   }, [planId, selectedTechniqueId, techniques])
 
-  // ── Past plans for the left switcher sidebar ──────────────────────────────
   const [allPlans, setAllPlans] = useState<PlanSummary[]>([])
   useEffect(() => {
     const sessionId = getSessionId()
@@ -131,7 +125,6 @@ export function PlanView({ initialPlan }: PlanViewProps) {
       .catch(() => {})
   }, [])
 
-  // ── Floating nav — rAF-throttled scroll listener ──────────────────────────
   const contentRef = useRef<HTMLDivElement>(null)
   const [floatingNav, setFloatingNav] = useState(false)
   useEffect(() => {
@@ -157,10 +150,8 @@ export function PlanView({ initialPlan }: PlanViewProps) {
     el.scrollTo({ top: 0, behavior: 'auto' })
   }, [selectedTechniqueId])
 
-  // ── Right panel collapse state ─────────────────────────────────────────────
   const [navOpen, setNavOpen] = useState(true)
 
-  // ── Derived values ─────────────────────────────────────────────────────────
   const masteredCount = useMemo(
     () => techniques.filter((t) => t.status === 'mastered').length,
     [techniques]
