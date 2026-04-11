@@ -41,10 +41,16 @@ export const buildPlanPrompt = (
   current: SkillLevel,
   target: SkillLevel,
   preferences?: UserPreferences | null
-): string => `
+): string => {
+  const progressionLine =
+    current === 'advanced' && target === 'advanced'
+      ? `The learner already identifies as **advanced** in ${hobby}. There is no higher tier label—they want to keep growing anyway. Build a roadmap of **next-level, specialist, and refinement** techniques (nuance, mastery edges, new sub-skills)—not remedial or "101" basics unless truly essential for a specific gap.`
+      : `Generate a focused learning roadmap for someone at **${current}** level working toward **${target}** level.`
+
+  return `
 You are a master coach for ${hobby}.
 
-Generate a focused learning roadmap for someone at ${current} level wanting to reach ${target} level.
+${progressionLine}
 
 RULES:
 - Return exactly 5 to 8 techniques. No more, no less.
@@ -87,6 +93,7 @@ Return ONLY valid JSON. No markdown fences, no explanation, no preamble.
 }
 ${preferences ? buildPreferenceInstructions(preferences) : ''}
 `
+}
 
 export async function generatePlanTechniques(
   hobby: string,

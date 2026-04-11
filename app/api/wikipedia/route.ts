@@ -1,4 +1,5 @@
 import { type NextRequest } from 'next/server'
+import { getUserContentPolicyViolation } from '@/lib/contentPolicy'
 import { fetchWikipediaImage } from '@/lib/wikipedia'
 
 export async function GET(req: NextRequest) {
@@ -6,6 +7,11 @@ export async function GET(req: NextRequest) {
     const q = req.nextUrl.searchParams.get('q')
     if (!q) {
       return Response.json({ error: 'Missing query param q' }, { status: 400 })
+    }
+
+    const qViolation = getUserContentPolicyViolation(q)
+    if (qViolation) {
+      return Response.json({ error: qViolation }, { status: 400 })
     }
 
     const image = await fetchWikipediaImage(q)

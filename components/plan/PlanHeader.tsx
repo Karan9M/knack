@@ -4,6 +4,7 @@ import { ProgressRing } from '@/components/plan/ProgressRing'
 import { StreakBadge } from '@/components/plan/StreakBadge'
 import { useStreak } from '@/hooks/useStreak'
 import { SKILL_LEVEL_LABELS } from '@/constants'
+import { isAdvancedContinuedLearning } from '@/lib/skillLevels'
 import type { Plan } from '@/types'
 
 interface PlanHeaderProps {
@@ -27,11 +28,21 @@ export function PlanHeader({ plan, masteredCount }: PlanHeaderProps) {
             {plan.hobby}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {SKILL_LEVEL_LABELS[plan.currentLevel]}{' '}
-            <span className="text-muted-foreground/60">→</span>{' '}
-            <span className="text-foreground font-medium">
-              {SKILL_LEVEL_LABELS[plan.targetLevel]}
-            </span>
+            {isAdvancedContinuedLearning(plan.currentLevel, plan.targetLevel) ? (
+              <>
+                <span className="text-foreground font-medium">Advanced</span>
+                <span className="text-muted-foreground/60"> · </span>
+                <span>Deeper mastery &amp; new edges</span>
+              </>
+            ) : (
+              <>
+                {SKILL_LEVEL_LABELS[plan.currentLevel]}{' '}
+                <span className="text-muted-foreground/60">→</span>{' '}
+                <span className="text-foreground font-medium">
+                  {SKILL_LEVEL_LABELS[plan.targetLevel]}
+                </span>
+              </>
+            )}
           </p>
         </div>
 

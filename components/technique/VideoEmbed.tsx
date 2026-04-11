@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { Play } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useVideoSearch } from '@/hooks/useVideoSearch'
+import { usePlanStore } from '@/store/planStore'
 import type { YouTubeVideo } from '@/types'
 
 interface VideoEmbedProps {
@@ -14,22 +15,37 @@ interface VideoEmbedProps {
 }
 
 export function VideoEmbed({ techniqueId, videoQuery, cachedVideos }: VideoEmbedProps) {
+  const storedCache = usePlanStore(
+    (s) => s.activePlan?.techniques.find((t) => t.id === techniqueId)?.resources.videoCache
+  )
+
+  const dbVideoCache = useMemo(() => {
+    if (cachedVideos && cachedVideos.length > 0) return cachedVideos
+    if (storedCache && storedCache.length > 0) return storedCache
+    return undefined
+  }, [cachedVideos, storedCache])
+
+  const cacheKey = useMemo(
+    () => (dbVideoCache?.length ? dbVideoCache.map((v) => v.id).join(',') : ''),
+    [dbVideoCache]
+  )
+
   const { videos, isLoading, error, fetchVideos } = useVideoSearch()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
 
-  const displayVideos = cachedVideos?.length ? cachedVideos : videos
+  const displayVideos = dbVideoCache?.length ? dbVideoCache : videos
   const activeVideo = selectedId ? displayVideos.find((v) => v.id === selectedId) : displayVideos[0]
+  const showLoader = isLoading && !dbVideoCache?.length
 
   useEffect(() => {
-    fetchVideos(techniqueId, videoQuery, cachedVideos)
-    // Reset play state when technique changes
-    setIsPlaying(false)
-    setSelectedId(null)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [techniqueId, videoQuery])
+    const fromDb =
+      (cachedVideos?.length ? cachedVideos : undefined) ??
+      (storedCache?.length ? storedCache : undefined)
+    void fetchVideos(techniqueId, videoQuery, fromDb)
+  }, [techniqueId, videoQuery, cacheKey, fetchVideos, cachedVideos, storedCache])
 
-  if (isLoading) {
+  if (showLoader) {
     return <div className="w-full aspect-video rounded-xl bg-secondary animate-pulse" />
   }
 

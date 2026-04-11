@@ -16,7 +16,7 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
-import { SKILL_LEVEL_LABELS } from '@/constants'
+import { formatPlanLevelJourney } from '@/lib/skillLevels'
 import type { SkillLevel } from '@/types'
 
 export interface PlanSummary {
@@ -83,8 +83,7 @@ export const PlanSwitcherSidebar = memo(function PlanSwitcherSidebar({
                       {currentHobby}
                     </span>
                     <span className="text-[10px] text-muted-foreground leading-tight">
-                      {SKILL_LEVEL_LABELS[currentLevel]}&nbsp;→&nbsp;
-                      {SKILL_LEVEL_LABELS[targetLevel]}
+                      {formatPlanLevelJourney(currentLevel, targetLevel)}
                     </span>
                   </span>
                 </SidebarMenuButton>

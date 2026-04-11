@@ -1,5 +1,6 @@
 import { type NextRequest } from 'next/server'
 import { GROQ_MODEL } from '@/constants'
+import { getFirstUserContentPolicyViolation } from '@/lib/contentPolicy'
 import { GenerateContentSchema } from '@/lib/validators'
 import { saveMdxContent } from '@/lib/db'
 import { sanitizeGeneratedMdx } from '@/lib/mdxSanitize'
@@ -125,6 +126,16 @@ export async function POST(req: NextRequest) {
 
     const { techniqueId, techniqueName, hobby, whyItMatters, keyConcepts, preferences } =
       parsed.data
+
+    const contentViolation = getFirstUserContentPolicyViolation([
+      techniqueName,
+      hobby,
+      whyItMatters,
+      ...keyConcepts,
+    ])
+    if (contentViolation) {
+      return Response.json({ error: contentViolation }, { status: 400 })
+    }
 
     const { prompt, maxTokens } = buildContentPrompt(
       techniqueName,

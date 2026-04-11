@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { getUserContentPolicyViolation } from '@/lib/contentPolicy'
 import { usePlanStore } from '@/store/planStore'
 
 type SaveStatus = 'idle' | 'typing' | 'saving' | 'saved' | 'error'
@@ -17,6 +18,7 @@ function draftKey(techniqueId: string) {
 export function useTechniqueNotes({ techniqueId, initialNotes }: UseTechniqueNotesArgs) {
   const [notes, setNotes] = useState('')
   const [status, setStatus] = useState<SaveStatus>('idle')
+  const [saveError, setSaveError] = useState<string | null>(null)
   const debounceRef = useRef<number | null>(null)
   const savedFadeRef = useRef<number | null>(null)
   const updateTechniqueNotes = usePlanStore((s) => s.updateTechniqueNotes)
@@ -34,6 +36,13 @@ export function useTechniqueNotes({ techniqueId, initialNotes }: UseTechniqueNot
 
   const persist = useCallback(
     async (nextNotes: string) => {
+      const violation = getUserContentPolicyViolation(nextNotes)
+      if (violation) {
+        setSaveError(violation)
+        setStatus('error')
+        return
+      }
+      setSaveError(null)
       setStatus('saving')
       try {
         const res = await fetch(`/api/technique/${techniqueId}`, {
@@ -42,13 +51,20 @@ export function useTechniqueNotes({ techniqueId, initialNotes }: UseTechniqueNot
           body: JSON.stringify({ action: 'notes', notes: nextNotes }),
         })
 
-        if (!res.ok) throw new Error('Failed to save notes')
+        const data = (await res.json().catch(() => null)) as { error?: string } | null
+        if (!res.ok) {
+          setSaveError(typeof data?.error === 'string' ? data.error : 'Could not save notes')
+          setStatus('error')
+          return
+        }
+        setSaveError(null)
         setStatus('saved')
         localStorage.removeItem(draftKey(techniqueId))
 
         if (savedFadeRef.current) window.clearTimeout(savedFadeRef.current)
         savedFadeRef.current = window.setTimeout(() => setStatus('idle'), 1200)
       } catch {
+        setSaveError('Could not save notes')
         setStatus('error')
       }
     },
@@ -58,8 +74,11 @@ export function useTechniqueNotes({ techniqueId, initialNotes }: UseTechniqueNot
   useEffect(() => {
     clearTimers()
     const draft = localStorage.getItem(draftKey(techniqueId))
+    /* eslint-disable react-hooks/set-state-in-effect -- hydrate draft when switching technique */
     setNotes(draft ?? initialNotes ?? '')
     setStatus('idle')
+    setSaveError(null)
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [clearTimers, initialNotes, techniqueId])
 
   useEffect(() => clearTimers, [clearTimers])
@@ -68,6 +87,7 @@ export function useTechniqueNotes({ techniqueId, initialNotes }: UseTechniqueNot
     (nextNotes: string) => {
       setNotes(nextNotes)
       setStatus('typing')
+      if (saveError) setSaveError(null)
       updateTechniqueNotes(techniqueId, nextNotes)
       localStorage.setItem(draftKey(techniqueId), nextNotes)
 
@@ -76,8 +96,8 @@ export function useTechniqueNotes({ techniqueId, initialNotes }: UseTechniqueNot
         persist(nextNotes)
       }, 1000)
     },
-    [persist, techniqueId, updateTechniqueNotes]
+    [persist, saveError, techniqueId, updateTechniqueNotes]
   )
 
-  return { notes, status, onChange }
+  return { notes, status, onChange, saveError }
 }

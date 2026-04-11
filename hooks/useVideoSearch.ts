@@ -5,6 +5,13 @@ import { usePlanStore } from '@/store/planStore'
 import type { YouTubeVideo } from '@/types'
 import { FETCH_VIDEOS_ENDPOINT } from '@/constants'
 
+/** Dedupe concurrent YouTube fetches (e.g. React Strict Mode double mount). */
+const inflightVideoFetches = new Map<string, Promise<YouTubeVideo[]>>()
+
+function videoFetchKey(techniqueId: string, query: string) {
+  return `${techniqueId}\0${query}`
+}
+
 interface UseVideoSearchReturn {
   videos: YouTubeVideo[]
   isLoading: boolean
@@ -22,23 +29,35 @@ export function useVideoSearch(): UseVideoSearchReturn {
     async (techniqueId: string, query: string, cached?: YouTubeVideo[]) => {
       if (cached?.length) {
         setVideos(cached)
+        setError(null)
+        setIsLoading(false)
         return
       }
 
       setIsLoading(true)
       setError(null)
 
+      const key = videoFetchKey(techniqueId, query)
+      let promise = inflightVideoFetches.get(key)
+      if (!promise) {
+        promise = (async (): Promise<YouTubeVideo[]> => {
+          const res = await fetch(FETCH_VIDEOS_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query }),
+          })
+
+          if (!res.ok) throw new Error(`Failed to fetch videos: ${res.statusText}`)
+
+          const data = (await res.json()) as { videos: YouTubeVideo[] }
+          return data.videos ?? []
+        })()
+        inflightVideoFetches.set(key, promise)
+        void promise.finally(() => inflightVideoFetches.delete(key))
+      }
+
       try {
-        const res = await fetch(FETCH_VIDEOS_ENDPOINT, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query }),
-        })
-
-        if (!res.ok) throw new Error(`Failed to fetch videos: ${res.statusText}`)
-
-        const data = (await res.json()) as { videos: YouTubeVideo[] }
-        const list = data.videos ?? []
+        const list = await promise
         setVideos(list)
 
         if (list.length === 0) {
@@ -49,11 +68,11 @@ export function useVideoSearch(): UseVideoSearchReturn {
         }
 
         updateTechniqueVideos(techniqueId, list)
-        fetch(`/api/technique/${techniqueId}`, {
+        await fetch(`/api/technique/${techniqueId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'cacheVideos', videos: list }),
-        }).catch(console.error)
+        }).catch(() => {})
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load videos')
       } finally {
