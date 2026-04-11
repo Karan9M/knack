@@ -2,166 +2,169 @@
 
 ![Knack product preview](public/branding/30shots_so.png)
 
-Knack is a web app for **focused hobby learning**: you pick a hobby and level, get an AI-built roadmap of **5–8 techniques**, then work through **videos, reading, and practice tasks** while tracking progress (mastered / skipped) and a simple streak. Data is tied to an anonymous **session** and persisted in **Supabase** so it survives refresh and return visits—no signup required.
+Knack is a web app for **focused hobby learning**: you complete a short **preference quiz** (visual style, learning mode, session length), choose a **hobby** and **current → target** skill level, then get an AI-built roadmap of **5–8 techniques**. You work through **videos**, **reading** (markdown with GitHub-flavored markdown and **Mermaid** diagrams where useful), **Wikipedia** context images, optional **stock hero images** (Pexels), **practice tasks**, and an in-context **technique chat**. Progress is **mastered / skipped**, with a **daily streak** and **resume** behaviour so you pick up where you left off.
+
+Plans and progress are tied to an anonymous **browser session** and persisted in **Supabase**—no signup required.
 
 ## Tech stack
 
-| Layer        | Choice                                                          |
-| ------------ | --------------------------------------------------------------- |
-| Framework    | Next.js 16 (App Router), React 19, TypeScript                   |
-| Styling      | Tailwind CSS 4, shadcn-style UI components                      |
-| Client state | Zustand                                                         |
-| Validation   | Zod                                                             |
-| Persistence  | Supabase (PostgreSQL)                                           |
-| AI           | Groq (`llama-3.3-70b-versatile`) for plans and markdown lessons |
-| Media        | YouTube Data API, Wikipedia API, Pexels (optional images)       |
+| Layer        | Choice                                                                                                 |
+| ------------ | ------------------------------------------------------------------------------------------------------ |
+| Framework    | Next.js 16 (App Router), React 19, TypeScript                                                          |
+| Styling      | Tailwind CSS 4, shadcn-style UI (`components/ui`, `components.json`)                                   |
+| Client state | Zustand (`store/planStore`, `store/uiStore`)                                                           |
+| Validation   | Zod                                                                                                    |
+| Persistence  | Supabase (PostgreSQL) via `lib/db.ts`, `lib/supabase.ts`                                               |
+| AI           | Groq (`llama-3.3-70b-versatile` in `constants`) — plans, MDX lessons, chat                             |
+| Media        | YouTube Data API (`lib/youtube.ts`), Wikipedia (`lib/wikipedia.ts`), Pexels (`app/api/generate-image`) |
+
+Groq access is centralized through [`lib/ai.ts`](lib/ai.ts) (plan generation) and [`lib/services/groq-client.service.ts`](lib/services/groq-client.service.ts) (e.g. technique chat).
 
 ## Architecture
 
 ```mermaid
 flowchart TB
   subgraph client [Browser]
-    pages[app pages]
+    pages[app/page + app/plan/id]
     store[Zustand stores]
-    hooks[Hooks]
+    hooks[hooks]
     pages --> store
     pages --> hooks
   end
   subgraph next [Next.js server]
-    api[Route handlers app/api]
-    services[lib/services Groq client]
-    lib[lib db session validators]
-    api --> services
-    api --> lib
+    api[app/api route handlers]
+    ai[lib/ai lib/validators]
+    db[lib/db lib/session]
+    api --> ai
+    api --> db
   end
   subgraph external [External]
-    groq[Groq API]
-    yt[YouTube API]
+    groq[Groq]
+    yt[YouTube]
     wiki[Wikipedia]
+    px[Pexels]
     sb[Supabase]
   end
   client --> api
-  services --> groq
-  lib --> sb
+  ai --> groq
   api --> yt
   api --> wiki
+  api --> px
+  db --> sb
 ```
 
-- **`lib/services/`** — thin integration boundaries (e.g. `GroqClientService`) so environment and SDK setup stay consistent across routes.
-- **`lib/db.ts`** — maps domain types to Supabase rows (plans, techniques, sessions, streaks).
-- **`app/api/*`** — JSON APIs: plan generation, content generation, video fetch, technique updates, sessions.
+- **`app/page.tsx`** — onboarding: quiz → hobby → levels → plan generation; resume and past-plan UI.
+- **`app/plan/[id]/page.tsx`** — loads plan from Supabase, renders **`PlanView`**.
+- **`app/api/*`** — JSON APIs (see table below).
+- **`lib/db.ts`** — maps domain types to Supabase rows (sessions, plans, techniques, streaks).
+- **`lib/resumeState.ts`** — local resume pointer (plan + technique) for the home experience.
 
 ![Knack onboarding and roadmap UI](public/branding/769shots_so.png)
+
+## API routes
+
+| Route                        | Role                                                                                      |
+| ---------------------------- | ----------------------------------------------------------------------------------------- |
+| `POST /api/generate-plan`    | Groq: structured plan (techniques) from hobby, levels, preferences                        |
+| `POST /api/generate-content` | Groq: per-technique MDX lesson content                                                    |
+| `POST /api/generate-image`   | Pexels search → hero image URL (503 if `PEXELS_API_KEY` unset)                            |
+| `POST /api/fetch-videos`     | YouTube search, Shorts filtered via duration                                              |
+| `GET /api/wikipedia`         | Wikipedia summary image for a query                                                       |
+| `POST /api/sessions`         | List plans for a session id                                                               |
+| `GET /api/plan/[id]`         | Plan JSON by id (SSR uses `getPlanById` directly; route available for clients or tooling) |
+| `PATCH /api/technique/[id]`  | Partial technique updates (notes, videos, images, mdx, etc.)                              |
+| `POST /api/technique-chat`   | Groq: Q&A in context of a technique                                                       |
 
 ## Getting started
 
 ```bash
 cp .env.example .env.local
-# Fill in keys (see below)
+# Set variables (see table below). Never commit .env.local or real API keys.
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000). If you use **pnpm**, `pnpm install` / `pnpm run dev` work the same (`pnpm-lock.yaml` is present alongside `package-lock.json`).
 
 ### Environment variables
 
-| Variable                    | Required | Purpose                                  |
-| --------------------------- | -------- | ---------------------------------------- |
-| `GROQ_API_KEY`              | Yes      | Plan and article-style technique content |
-| `YOUTUBE_API_KEY`           | Yes      | Search/embed-friendly tutorial videos    |
-| `SUPABASE_URL`              | Yes      | Database URL                             |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes      | Server-side access from API routes       |
-| `PEXELS_API_KEY`            | No       | Fallback stock imagery for techniques    |
+| Variable                    | Required | Purpose                                                                                                   |
+| --------------------------- | -------- | --------------------------------------------------------------------------------------------------------- |
+| `GROQ_API_KEY`              | Yes      | Plan generation, markdown content, technique chat                                                         |
+| `YOUTUBE_API_KEY`           | Yes      | Tutorial video search                                                                                     |
+| `SUPABASE_URL`              | Yes      | Database URL                                                                                              |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes      | Server-side writes from API routes                                                                        |
+| `PEXELS_API_KEY`            | No       | Stock hero images for techniques (skipped for diagram/flowchart image styles when unset or misconfigured) |
 
 ### Supabase schema
 
-Tables expected by the app: **`sessions`**, **`plans`**, **`techniques`**, **`streaks`**. Column names align with the inserts/updates in [`lib/db.ts`](lib/db.ts) (snake_case in the database, camelCase in TypeScript types). Create matching tables and RLS/policies for your environment before relying on production data.
+The app expects **`sessions`**, **`plans`**, **`techniques`**, and **`streaks`** tables aligned with inserts/updates in [`lib/db.ts`](lib/db.ts) (snake_case in the database, camelCase in [`types/index.ts`](types/index.ts)). Configure RLS and policies for your environment before production use.
 
 ## Scripts
 
-| Command             | Description                |
-| ------------------- | -------------------------- |
-| `npm run dev`       | Development server         |
-| `npm run build`     | Production build           |
-| `npm run start`     | Run production build       |
-| `npm run lint`      | ESLint                     |
-| `npm run format`    | Prettier write             |
-| `npm run typecheck` | TypeScript check           |
-| `npm test`          | Vitest (validators, utils) |
+| Command                | Description                     |
+| ---------------------- | ------------------------------- |
+| `npm run dev`          | Next.js dev server              |
+| `npm run build`        | Production build                |
+| `npm run start`        | Run production server           |
+| `npm run lint`         | ESLint                          |
+| `npm run format`       | Prettier (write)                |
+| `npm run format:check` | Prettier (check only)           |
+| `npm run typecheck`    | `tsc --noEmit`                  |
+| `npm test`             | Vitest (single run)             |
+| `npm run test:watch`   | Vitest watch mode               |
+| `npm run healthcheck`  | Lint + typecheck + test + build |
 
-**Git hooks (Husky):** `pre-commit` runs **lint-staged** (ESLint + Prettier on staged files); `pre-push` runs **`typecheck`** and **`test`**.
+**Git hooks (Husky):** `pre-commit` runs **lint-staged** (ESLint fix + Prettier on staged files); `pre-push` runs **`typecheck`** and **`test`**.
 
 ## Testing
 
-Focused **unit tests** cover high-value, deterministic code:
+Vitest runs `**/*.test.ts` in a Node environment with `@` → repo root ([`vitest.config.ts`](vitest.config.ts)). Current coverage is **unit-level, deterministic `lib/` helpers** only:
 
-- Zod schemas in [`lib/validators.ts`](lib/validators.ts)
-- helpers in [`lib/utils.ts`](lib/utils.ts)
-- local persistence and progress behavior in [`lib/storage.ts`](lib/storage.ts)
+- [`lib/validators.test.ts`](lib/validators.test.ts) — Zod plan/content shapes
+- [`lib/utils.test.ts`](lib/utils.test.ts)
+- [`lib/storage.test.ts`](lib/storage.test.ts)
+- [`lib/resumeState.test.ts`](lib/resumeState.test.ts)
+- [`lib/mdxSanitize.test.ts`](lib/mdxSanitize.test.ts)
+- [`lib/mermaidNormalize.test.ts`](lib/mermaidNormalize.test.ts)
 
-Run `npm test` before pushing.
+There are no automated tests for `app/api/*`, pages, components, hooks, or stores yet; add them when you want regression safety on integrations or UI.
 
-## Product parity checklist (`knack` -> `knack-prod`)
+## Repository layout
 
-This repository is maintained as a runtime-equivalent replica of `knack` for:
+| Area          | Contents                                                                           |
+| ------------- | ---------------------------------------------------------------------------------- |
+| `app/`        | App Router: `layout.tsx`, home `page.tsx`, `plan/[id]/page.tsx`, `api/**/route.ts` |
+| `components/` | Onboarding, plan shell, technique UI, layout, `ui/` primitives                     |
+| `hooks/`      | Video search, streak, technique actions/notes, etc.                                |
+| `store/`      | Zustand plan + UI state                                                            |
+| `lib/`        | DB, AI, YouTube, Wikipedia, session, sanitization, validators, utils               |
+| `constants/`  | App name, endpoints, model id, limits                                              |
+| `types/`      | Shared TypeScript domain types                                                     |
+| `public/`     | Static assets including branding shots                                             |
 
-- App routes/pages in [`app`](app)
-- API routes in [`app/api`](app/api)
-- Feature/UI modules in [`components`](components), [`hooks`](hooks), [`store`](store)
-- Domain/runtime logic in [`lib`](lib), [`types`](types), [`constants`](constants), and [`public`](public)
+## AI usage
 
-### Accepted engineering-only divergences
-
-The following are intentional and do **not** change product behavior:
-
-- Tooling and quality files: Husky, lint-staged, Prettier, Vitest config/tests
-- CI/dev scripts and hook scripts in `package.json`
-- ESLint overrides for `components/ui/*` to keep third-party-style UI primitives lint-safe
-
-### Parity verification commands
-
-Run this full gate before release:
-
-```bash
-npm run lint
-npm run typecheck
-npm test
-npm run build
-```
-
-## AI usage (assistive, not “vibe coded”)
-
-Groq is used **only** to propose structured learning plans and long-form markdown lessons from prompts defined in code ([`lib/ai.ts`](lib/ai.ts), [`app/api/generate-content/route.ts`](app/api/generate-content/route.ts)). Shapes are validated with Zod before persistence. Architecture, data model, APIs, UI, and integration choices are authored and reviewed as normal application code.
+Groq is used to produce **structured JSON plans** and **long-form markdown** from prompts in [`lib/ai.ts`](lib/ai.ts) and route handlers such as [`app/api/generate-content/route.ts`](app/api/generate-content/route.ts). Responses are validated with **Zod** (`lib/validators.ts`) before persistence. Product behaviour, data model, and UI are normal application code—not generated wholesale.
 
 ## Design and product inspiration
 
-- Assignment references for product direction: [oboe.fyi](https://oboe.fyi), [wondering.app](https://wondering.app) (ideas only—not a clone).
-- UI built with patterns from **[shadcn/ui](https://ui.shadcn.com)** and registry components; decorative effects from **[Aceternity UI](https://ui.aceternity.com)** (see [`components.json`](components.json)).
+- Product direction references: [oboe.fyi](https://oboe.fyi), [wondering.app](https://wondering.app) (ideas only—not a clone).
+- UI patterns from **[shadcn/ui](https://ui.shadcn.com)** and registry components; decorative effects from **[Aceternity UI](https://ui.aceternity.com)** (see [`components.json`](components.json)).
 
 ## Deployment (e.g. Vercel)
 
-1. Connect the repo and set the same environment variables as `.env.example`.
-2. Ensure Supabase is reachable from Vercel’s region.
-3. `npm run build` must pass locally first.
+1. Connect the repo and set the same variables as `.env.example` in the host dashboard.
+2. Ensure Supabase is reachable from the deployment region.
+3. Run `npm run healthcheck` (or at least `npm run build`) locally before shipping.
 
 ## Git workflow
 
-Development used short-lived branches merged into `main`, for example:
-
-- `chore/tooling` — Prettier, Husky, lint-staged
-- `chore/deps-config` — dependencies and Next/Tailwind config
-- `feat/domain-api` — types, `lib/`, API routes
-- `feat/ui` — components, stores, hooks, pages
-- `test/core` — Vitest
-- `docs/readme` — this document
-
-After creating a **GitHub** repository, add the remote and push:
+Short-lived feature branches merged to `main` are typical (tooling, API, UI, tests, docs). After creating a remote:
 
 ```bash
 git remote add origin https://github.com/<you>/<repo>.git
 git push -u origin main
-git push origin --tags
 ```
 
 ## License
